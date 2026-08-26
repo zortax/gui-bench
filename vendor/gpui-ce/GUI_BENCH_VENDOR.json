@@ -1,0 +1,8 @@
+{
+  "source": "~/Projects/gpui-ce",
+  "revision": "a9f2c2f14949bba0ae055de8a22b49cccb91176d",
+  "dirty": true,
+  "excluded": [".git", "target"],
+  "note": "Copied from the current working tree for gui-bench instrumentation."
+}
+

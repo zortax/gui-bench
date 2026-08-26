@@ -1,0 +1,22 @@
+[package]
+name = "bench-zgui"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+bench-core.workspace = true
+clap.workspace = true
+serde_json.workspace = true
+zgui = { path = "../../../zgui/crates/zgui" }
+zgui-atlas = { path = "../../../zgui/crates/zgui-atlas" }
+zgui-bits = { path = "../../../zgui/crates/zgui-bits" }
+zgui-platform = { path = "../../../zgui/crates/zgui-platform" }
+zgui-profile = { path = "../../../zgui/crates/zgui-profile", features = ["counters"] }
+zgui-render = { path = "../../../zgui/crates/zgui-render" }
+zgui-render-wgpu = { path = "../../../zgui/crates/zgui-render-wgpu" }
+zgui-runtime = { path = "../../../zgui/crates/zgui-runtime" }
+zgui-scene = { path = "../../../zgui/crates/zgui-scene" }
+zgui-view = { path = "../../../zgui/crates/zgui-view" }
+

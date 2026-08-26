@@ -1,0 +1,14 @@
+[package]
+name = "bench-gpui"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+bench-core.workspace = true
+clap.workspace = true
+gpui = { path = "../../vendor/gpui-ce/crates/gpui", default-features = false, features = ["wayland", "x11"] }
+gpui_platform = { path = "../../vendor/gpui-ce/crates/gpui_platform", features = ["font-kit", "wayland", "x11"] }
+serde_json.workspace = true
+

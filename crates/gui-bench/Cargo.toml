@@ -1,0 +1,12 @@
+[package]
+name = "gui-bench"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+bench-core.workspace = true
+clap.workspace = true
+nvml-wrapper = "0.12.1"
+serde_json.workspace = true
