@@ -1,0 +1,16 @@
+[package]
+name = "gpui-kit-fast-bench"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+publish = false
+
+# The gpui-kit app with the `gpui-fast` feature: the same sources (`src` links to
+# `../gpui-kit/src`), with GPUI Fast as the core, platform and renderer.
+[workspace]
+
+[dependencies]
+gpui-kit = { version = "0.9.1", features = ["gpui-fast"] }
+
+[profile.release]
+debug = 1

@@ -21,7 +21,7 @@ GROUPS = [
 ]
 
 
-OTHER = "#b9b8b1"
+OTHER = "#cfccc6"
 
 
 def phases(cell):
@@ -30,24 +30,27 @@ def phases(cell):
 
 
 def plot(run, framework="zgui"):
-    rates = run.rates
+    rates = run.rates("rows")
     cells_by_rate = {hz: [cell for cell in run.series(framework, hz) if phases(cell)] for hz in rates}
     if not any(cells_by_rate.values()):
         return None
-    fig = c.figure(6.5 * len(rates) + 1, 5.4, f"{framework} frame phases (app marks, mean per frame)",
-                   c.subtitle(run))
+    fig = c.figure(6.5 * len(rates) + 1, 6.4, f"Where a {framework} frame goes",
+                   "CPU time of each frame phase from the app's own marks, mean per frame while "
+                   "scrolling (while hovering for lists too short to scroll). Label: the whole "
+                   "frame, mean and 95th percentile")
     axes = fig.subplots(1, len(rates), sharey=True, squeeze=False)[0]
-    fig.subplots_adjust(left=0.07, right=0.98, top=0.8, bottom=0.22, wspace=0.08)
+    fig.subplots_adjust(left=0.07, right=0.98, top=c.top_of_panels(fig, 0.3), bottom=0.14,
+                        wspace=0.12)
     for ax, hz in zip(axes, rates):
         cells = cells_by_rate[hz]
         for i, cell in enumerate(cells):
             data = phases(cell)
             bottom = 0.0
             # The phases take the slots after the frameworks, so no phase looks like a framework.
-            for (label, names), color in zip(GROUPS, c.SLOTS[2:]):
+            for (label, names), color in zip(GROUPS, c.PASTELS[1:]):
                 value = sum(data[n]["mean_ms"] for n in names if n in data)
-                ax.bar(i, value, 0.6, bottom=bottom, color=color, edgecolor=c.SURFACE,
-                       linewidth=1, label=label if i == 0 else None)
+                ax.bar(i, value, 0.62, bottom=bottom, color=color, edgecolor=c.SURFACE,
+                       linewidth=1.2, label=label if i == 0 else None)
                 bottom += value
             frame = data.get("frame", {})
             other = frame.get("mean_ms", 0.0) - bottom
@@ -56,17 +59,20 @@ def plot(run, framework="zgui"):
                        linewidth=1, label="other" if i == 0 else None)
                 bottom += other
             if frame:
-                ax.text(i, bottom, f"frame {frame['mean_ms']:.1f} ms\np95 {frame['p95_ms']:.1f}",
-                        ha="center", va="bottom", fontsize=7, color=c.TEXT_2)
+                ax.text(i, bottom, f"{frame['mean_ms']:.1f} ms\np95 {frame['p95_ms']:.1f}",
+                        ha="center", va="bottom", fontsize=8.4, color=c.TEXT_2,
+                        linespacing=1.3)
         ax.set_xticks(range(len(cells)))
         ax.set_xticklabels([f"{cell.rows:,}" for cell in cells])
-        c.style(ax, f"{hz:g} Hz", "ms per frame" if ax is axes[0] else None, "rows")
+        c.style(ax, f"{hz:g} Hz", "CPU ms per frame" if ax is axes[0] else None, "rows")
         ax.margins(y=0.15)
     handles, labels = axes[0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc="lower center", ncol=len(GROUPS) + 1 if len(rates) > 1 else 4,
-               frameon=False, fontsize=9,
-               labelcolor=c.TEXT, bbox_to_anchor=(0.5, 0.01))
-    return c.save(fig, run, f"{framework}_phases")
+    fig._legend_row = True
+    fig.legend(handles, labels, loc="upper left", ncol=len(labels), fontsize=9.5,
+               labelcolor=c.TEXT, borderaxespad=0, handlelength=1.2,
+               bbox_to_anchor=(0.4 / fig.get_figwidth() - 0.004,
+                               1 - fig._header - 0.02 / fig.get_figheight()))
+    return c.save(fig, run, f"{framework}_phases", "rows")
 
 
 if __name__ == "__main__":

@@ -4,61 +4,156 @@ Benchmarks of Rust GUI frameworks under
 [fakeland](../fakeland), a headless Wayland compositor that fakes the display
 and measures every frame from input to presentation.
 
-Each framework renders the same window: a scroll container with N rows, all
-of them real elements (no virtualization). The matrix runs every framework at
-every refresh rate and row count and measures:
+Each framework has one app in `apps/<framework>` (binary
+`<framework>-bench`) that shows one scenario per run, picked on the command
+line: `<framework>-bench --scenario NAME --rows N [--variant V]`. Every app
+draws the same pixels: the layout, colors, data and table operations live in
+`apps/shared/spec.rs`, the command line in `apps/shared/cli.rs`. Each scenario
+is written the way the framework's documentation teaches, with its built-in
+widgets, keyed lists, timers and animation API, and without shortcuts around
+its normal update path.
 
-- **Startup:** process spawn to the first presented frame of the full list.
-- **Hover latency:** the pointer enters a row; the time until the frame with
-  the hover color is on screen, split into app work (input to commit), GPU,
-  the wait for the refresh, and presentation.
-- **Scroll smoothness:** a finger glide at 800 px/s; the content
-  displacement of every presented frame against the input, missed refreshes,
-  delivered frame rate and tracking.
-- **zgui frame phases:** zgui reports each frame and its phases (style,
-  layout, paint, record, submit) through fakeland app marks.
+## Scenarios
+
+| Scenario | The app shows | Measured | Sizes, rates |
+|---|---|---|---|
+| `rows` | one scroll container of N real rows (no virtualization) | startup, hover latency, scroll smoothness | 10 to 10,000 rows; 60, 144 Hz |
+| `table` | a header and a keyed table; F1 to F8 run operations, a click selects a row | input to photon and app CPU time of select, update every 10th row, swap, remove, insert, replace all, append 1,000, clear; memory kept per replace-all cycle (churn) | 1,000, 10,000; 60 Hz |
+| `ticker` | the table, and a timer that updates 1 or 100 rows (spread over the list) and the header every 16 ms | CPU and GPU time per second, delivered frames, damaged area | 1,000, 10,000 rows × 1, 100 updates; 60, 144 Hz |
+| `spinner` | a 24 px square turning once a second in the header, above static rows | CPU and GPU time per second, delivered frames, damaged area | 0, 10,000 rows; 60, 144 Hz |
+| `typing` | a focused text input above static rows | key to photon at 120 wpm | 1,000, 10,000; 60 Hz |
+| `search` | the same input, the rows filter on every key | key to filtered list (`z` hides all rows, BackSpace brings them back), typing latency | 1,000, 10,000; 60 Hz |
+| `virtual` | the rows of `rows` in the framework's virtualized list | startup, hover latency, scroll smoothness | 100,000, 1,000,000; 60, 144 Hz |
+| `resize` | the `rows` app | a resize storm (640x480 to 1200x800 in 1 s), a scale switch 1 to 2 to 1, memory at scale 2 | 100, 10,000; 60 Hz |
+
+Every cell also measures:
+
+- **Startup:** spawn to the first presented frame.
+- **Layout check:** a screenshot (`screenshot.png`) and the colors at fixed
+  points; a cell whose app draws another layout stops there.
+- **Idle:** three seconds with no input, the middle second suspended
+  (xdg `suspended` state): the memory and VRAM footprint, idle CPU time,
+  wakeups, commits, and commits while suspended.
+- **Resources and frame cost** on every measurement (see Metrics).
+
+### Variants: fine vs coarse
+
+The `table` and `ticker` scenarios run in every variant the framework has:
+
+| Framework | `fine` | `coarse` | `shared` |
+|---|---|---|---|
+| zgui | `KeyedFields` with one lens per field, an order signal, keyed `for`, `Selector` for the selection | one `RwSignal<Vec<Row>>`; the list is one reactive hole that rebuilds every row | as fine, every row compares one selection signal |
+| floem | `dyn_stack` keyed by id, `RwSignal` per row field | the whole list rebuilt from one `RwSignal<Vec<Row>>` | as fine, every row style reads one selection signal |
+| vizia | `List` over per-row signals | a binding over one `Signal<Vec<Row>>` that rebuilds every row | as fine, every row maps one selection signal |
+| freya | `Row` components with `PartialEq` props, keyed, per-row `State` | rows built inline in the root component | as fine, every row reads one selection `State` |
+| gpui-kit | an `Entity` per row embedded with `.cached()`, notified alone | one view over a `Vec`, `cx.notify()` on any change (GPUI's default) | – |
+| iced | `keyed_column` with `lazy((id, version, selected))` per row | a plain `column` rebuilt in `view` (iced's default) | – |
+| egui | – (`default`: immediate mode builds every row every frame) | | |
+
+`plots/table.py` draws the coarse/fine latency ratio per framework and
+operation. Some frameworks redo more than the variant suggests: GPUI marks
+the parents of a notified entity dirty, so the table view re-renders (cached
+rows are reused); iced runs `view` on every message, with `lazy` skipping
+unchanged rows; GPUI's `with_animation` and iced's `window::frames` re-render
+the whole page on every spinner frame. These are the frameworks' normal
+behavior and part of what the benchmark shows.
+
+## Metrics
+
+fakeland samples every launched process tree every 50 ms
+(`SamplingConfig`), and every measurement adds two analyzers:
+
+- **`resources`**: app CPU time (`cpu_ms`, `cpu_ms_per_s`, exact from
+  schedstat), wakeups (`wakeups_per_s`, context switches of every thread),
+  memory (`rss_max`, `pss_max`, `private_max`), per-process VRAM and GPU busy
+  time (`gpu_proc_mem_max`, `gpu_proc_busy_percent`; DRM fdinfo on amdgpu,
+  i915, xe and others, NVML on NVIDIA, loaded at run time), and device power
+  (`cpu_power_w` from RAPL when readable, `gpu_power_w`). Power is
+  device-wide and includes the rest of the host, so it is context only; CPU
+  and GPU time per second are the power proxy.
+- **`frame_cost`**: frames, CPU ms per frame, GPU time per frame from commit
+  to buffer fence (`gpu_fence_ms_p50`, `gpu_fence_ms_per_s`, an upper bound
+  on GPU work that works on every driver), and the damaged fraction of the
+  window per frame (`damage_fraction_mean`, `full_damage_frames`).
+  The GPU time needs a fence on the buffer (explicit or implicit sync); a
+  buffer without one counts as ready at commit and gives no GPU time. On
+  this host every app damages its whole surface on every frame, since the
+  Vulkan and GL presents of the drivers report full damage, so the damaged
+  area tells the frameworks apart only where one does partial presents.
+
+CPU time per table operation is the `cpu_ms` of an iteration over its
+operations: every probe repeat runs the operation and its undo.
 
 ## Frameworks
 
-| Framework | App | Source |
-|---|---|---|
-| zgui | `apps/zgui-rows` | path dependency on `../zgui-fakeland-marks` (branch `feat/fakeland-marks`), feature `fakeland-marks` |
-| gpui-kit | `apps/gpui-kit-rows` | `gpui-kit` 0.9.1 from crates.io (GPUI with gpui-base and gpui-component) |
+| Framework | App | Source | Renderer |
+|---|---|---|---|
+| zgui | `apps/zgui` | path dependency on `../zgui-fakeland-marks` (branch `feat/fakeland-marks`), feature `fakeland-marks` | wgpu Vulkan |
+| gpui-kit | `apps/gpui-kit` | `gpui-kit` 0.9.1 (GPUI with gpui-base and gpui-component) | wgpu Vulkan |
+| gpui-kit-fast | `apps/gpui-kit-fast` | the gpui-kit app with the `gpui-fast` feature: GPUI Fast 0.1.14 as core, platform and renderer | wgpu Vulkan |
+| freya | `apps/freya` | `freya` 0.5.1 | Skia on Vulkan |
+| freya-056a5b4 | `apps/freya-056a5b4` | the freya app on git `marc2332/freya` at `056a5b4` (0.6.0-alpha.1, 2026-11-07) | Skia on Vulkan |
+| vizia | `apps/vizia` | `vizia` 0.4.0 | Skia on OpenGL (EGL) |
+| floem | `apps/floem` | git `lapce/floem` at `1351ffb` (main, 2026-09-23); the 0.2.0 release dates from 2024 | vger on wgpu Vulkan |
+| iced | `apps/iced` | `iced` 0.14.0 | wgpu Vulkan |
+| egui | `apps/egui` | `eframe` 0.37.0 | wgpu Vulkan |
 
-Each app is its own cargo workspace, so the two GUI stacks never share a
-dependency resolve. The runner depends on fakeland by path (`../fakeland`).
+Crates come from crates.io unless the table says otherwise. All apps share
+the command line in `apps/shared/cli.rs` and the spec in `apps/shared/spec.rs`.
+
+Each app is its own cargo workspace, so the GUI stacks never share a
+dependency resolve. An edition of a framework (`gpui-kit-fast`, `freya-056a5b4`) is
+its own workspace too, with its `src` linked to the framework's sources, so
+both builds run the same code; plots give it the framework's hue one step
+deeper. The runner depends on fakeland by path (`../fakeland`), with
+the `nvml` feature for per-process GPU numbers on NVIDIA.
 
 ## Run
 
 ```sh
-just build                 # the apps and the runner, release
-just run                   # the full matrix, about 15 minutes
-just quick                 # 100 and 3000 rows at 60 Hz
-just plots                 # plots of results/latest
+just build                     # the apps and the runner, release
+just build-app iced            # one app
+just run                       # the full matrix: several hours
+just quick                     # the smallest sizes at 60 Hz, fewer repeats
+just scenario table            # one scenario for every framework
+just plots                     # plots of results/latest
 ```
 
 `just run` takes runner options, for example
-`just run --frameworks zgui --rows 1000,10000 --hz 144`. Results go to
-`results/<run>/`: `run.json` indexes the cells, and every cell directory
-`<framework>/<hz>hz/<rows>/` holds the reports as JSON (fakeland bench
-reports with per-iteration and per-sample data). `results/latest` links to
-the newest run.
+`just run --scenarios table,ticker --frameworks zgui,floem --variants fine,coarse --rows 10000 --hz 60`.
+Results go to `results/<run>/`: `run.json` (format 2) indexes the cells, and
+every cell directory `<scenario>/<framework>/<variant>/<hz>hz/<size>/` holds
+`cell.json` (arguments, done and failed measurements), `app.log`,
+`screenshot.png`, `startup.json` and one fakeland bench report per
+measurement (`idle.json`, `hover.json`, `scroll.json`, `op-<name>.json`,
+`churn.json`, `pacing.json`, `typing.json`, `filter.json`, `resize.json`,
+`scale.json`; zgui also `phases-<name>.json`). The size is the row count,
+with `-u<updates>` for the ticker. `results/latest` links to the newest run.
 
 ## Plots
 
-`plots/` holds Python scripts (matplotlib only). `plots/all.py <run>` writes
-every plot into `<run>/plots/` and a tidy `<run>/summary.csv`:
+`plots/` holds Python scripts (matplotlib only). They set their text in
+Libertinus Sans, which ships in `plots/fonts/` with its license (SIL Open
+Font License). Colors follow the Oldworld scheme: its light theme for
+the page and text, its pastel hues for the frameworks, each with a darker
+ink of the same hue for labels. `plots/all.py <run>` writes
+every plot into `<run>/plots/<scenario>/` and a tidy `<run>/summary.csv`:
 
-- `hover_latency.png`: hover latency against rows, median and 5th to 95th
-  percentile, one panel per refresh rate.
-- `hover_stages.png`: the median of each latency stage per framework and row
-  count.
-- `scroll.png`: smoothness, delivered frame rate, missed refreshes and
-  tracking against rows.
-- `startup.png`: spawn to first presented frame against rows.
-- `zgui_phases.png`: zgui CPU time per frame phase against rows.
+- `rows/`, `virtual/`: hover latency (linear and log), hover stages, scroll,
+  startup against rows; `rows/zgui_phases.png` from zgui's app marks.
+- `table/`: latency and CPU time per operation (one figure per row count),
+  the coarse/fine speedup, the memory kept per replace-all cycle.
+- `ticker/`, `spinner/`: CPU and GPU time per second, delivered frames,
+  damaged area, wakeups, per refresh rate.
+- `typing/`: typing latency with a static and a filtering list, and filter
+  latency.
+- `resize/`: configure to present, frames at a stale size, memory at scale 2.
+- `footprint/`: PSS and VRAM against rows with the slope per row, and the
+  idle figure.
+- `efficiency.png`: CPU and GPU time per second of every scenario's steady
+  phase, one row per framework.
 
-Each script also runs on its own: `python3 plots/scroll.py results/latest`.
+Each script also runs on its own: `python3 plots/table.py results/latest`.
 
 ## Method notes
 
@@ -70,12 +165,47 @@ Each script also runs on its own: `python3 plots/scroll.py results/latest`.
   estimation reads the rows above the pointer, since the hovered row under
   the pointer does not move with the content. Lists shorter than a glide
   (10 rows) have no scroll results.
-- GPUI on Wayland multiplies touchpad distances by 3 and turns wheel steps
-  into lines; the gpui-kit app undoes both so content moves 1:1 with the
-  input. zgui animates wheel steps; the zgui app moves the list at once. Both
-  apps show no animation on hover.
+- Every app moves its content 1:1 with the touchpad distance and applies it
+  at once. Where a framework scales or animates scroll input, the app
+  undoes it: GPUI multiplies touchpad distances by 3, freya by 2 and
+  animates them, and egui smooths larger deltas and drops the first delta of
+  a gesture. Wheel detents move 15 px at once in every app except vizia
+  (20 px); the matrix does not use the wheel.
+- Hover changes the row color at once, with no animation, in every app.
+- In `rows`, every row is a real element or widget, built up front. egui is immediate
+  mode: it builds and lays out all rows every frame, each the usual way (a
+  `Frame` with a horizontal layout of two `Label`s, and a `Separator`).
+- The scroll region for motion estimation ends six rows above the pointer.
+  Some apps update the hover a frame late, so during a glide the hover color
+  trails the pointer into the content above it.
+- Frame pacing of a glide counts the frames from the first scroll input to
+  the last frame that consumes one. A redraw that only answers the end of the
+  gesture stays out.
+- floem and vizia set no Wayland app id; the runner does not need one.
 - Without app marks, fakeland assigns each input to the next commit by time,
   so per-frame expected scroll steps jitter by an event for gpui-kit. The
   totals and the pixel-based measures are unaffected.
 - Times are compositor timestamps. A run is invalid when the compositor wakes
   late; each report carries its validity and the host environment.
+- The header scenarios have no hover color and no zebra stripes, so a click
+  or the pointer never changes pixels that a probe watches, and no row's look
+  depends on its position.
+- Table operations come from F-keys, which reach a window key listener with
+  no focused widget in every framework. Each operation has an undo key, so
+  the probe alternates between two states.
+- The ticker timer and the spinner use each framework's own timer and
+  animation API. vizia has no repeating keyframe animation and egui no
+  animation system: vizia steps a rotation signal from a 16 ms timer (so its
+  spinner moves at about 62 Hz at any refresh rate), egui paints the rotated
+  square and asks for a repaint, as its own `Spinner` does.
+- floem at `1351ffb` stops a repeating keyframe animation after its first
+  pass, so its spinner advances a rotation signal from
+  `exec_after_animation_frame`, floem's per-frame callback, and paints the
+  square on a `canvas` (vger draws a rotated rounded rect as its bounding
+  box). floem also drops a focus request made while the views are built; the
+  search input asks again from a zero timer, as floem's own dropdown does.
+- iced has no virtualized list; its `virtual` scenario builds the visible
+  rows from the `on_scroll` viewport, the approach the iced docs suggest.
+- The text input is each framework's built-in single-line input, focused at
+  startup, so its look and height differ slightly; the caret blinks at the
+  framework's default rate.

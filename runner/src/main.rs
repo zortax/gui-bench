@@ -1,12 +1,14 @@
-//! Runs the GUI benchmark matrix under fakeland. For every framework, refresh rate and row count,
-//! the runner starts a headless session, launches the framework's rows app, and measures startup,
-//! hover latency and scroll smoothness. Results go to `results/<run>/` as JSON, with `run.json`
-//! as the index; `results/latest` links to the newest run.
+//! Runs the GUI benchmark matrix under fakeland. For every scenario, framework, variant, refresh
+//! rate and size, the runner starts a headless session, launches the framework's app and runs the
+//! scenario's measurements. Results go to `results/<run>/<scenario>/<framework>/<variant>/<hz>hz/<size>/`
+//! as JSON, with `run.json` as the index; `results/latest` links to the newest run.
 
 mod cell;
 mod frameworks;
-mod matrix;
+mod layout;
 mod phases;
+mod scenarios;
+mod steps;
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -17,31 +19,52 @@ use clap::Parser;
 use serde_json::json;
 
 use crate::frameworks::Framework;
-use crate::matrix::{Cell, Effort};
+use crate::scenarios::{Cell, Effort, Kind};
+
+/// The format of `run.json` and the run directory.
+const FORMAT: u32 = 2;
 
 /// Runs the GUI benchmark matrix under fakeland.
 #[derive(Debug, Parser)]
 struct Args {
-    /// The frameworks, comma separated.
-    #[arg(long, value_delimiter = ',', default_value = "zgui,gpui-kit")]
-    frameworks: Vec<String>,
-    /// The row counts, comma separated.
+    /// The scenarios, comma separated: rows, table, ticker, spinner, typing, search, virtual,
+    /// resize.
     #[arg(
         long,
         value_delimiter = ',',
-        default_value = "10,100,300,1000,3000,10000"
+        default_value = "rows,table,ticker,spinner,typing,search,virtual,resize"
     )]
+    scenarios: Vec<String>,
+    /// The frameworks, comma separated.
+    #[arg(
+        long,
+        value_delimiter = ',',
+        default_value = "zgui,gpui-kit,gpui-kit-fast,freya,freya-056a5b4,vizia,floem,iced,egui"
+    )]
+    frameworks: Vec<String>,
+    /// Only these variants of the table and ticker scenarios, comma separated. All by default.
+    #[arg(long, value_delimiter = ',')]
+    variants: Vec<String>,
+    /// The row counts, comma separated, for every selected scenario. Each scenario has its own
+    /// default.
+    #[arg(long, value_delimiter = ',')]
     rows: Vec<u32>,
-    /// The output refresh rates in Hz, comma separated.
-    #[arg(long, value_delimiter = ',', default_value = "60,144")]
+    /// The output refresh rates in Hz, comma separated. Each scenario has its own default.
+    #[arg(long, value_delimiter = ',')]
     hz: Vec<f64>,
     /// Hover repeats per iteration.
     #[arg(long, default_value_t = 12)]
     repeats: u32,
-    /// Measured iterations of every scenario.
+    /// Repeats per iteration of the table operations and the search probe.
+    #[arg(long, default_value_t = 8)]
+    op_repeats: u32,
+    /// Measured iterations of every measurement.
     #[arg(long, default_value_t = 3)]
     iterations: u32,
-    /// A small matrix for a quick check: 100 and 3000 rows at 60 Hz with fewer repeats.
+    /// Replacements in the table churn.
+    #[arg(long, default_value_t = 40)]
+    churn: u32,
+    /// A small matrix for a quick check: the smallest sizes at 60 Hz with fewer repeats.
     #[arg(long)]
     quick: bool,
     /// The run directory. The default is `results/run-<unix time>`.
@@ -52,12 +75,16 @@ struct Args {
 fn main() -> anyhow::Result<()> {
     let mut args = Args::parse();
     if args.quick {
-        args.rows = vec![100, 3000];
-        args.hz = vec![60.0];
         args.repeats = 6;
+        args.op_repeats = 4;
         args.iterations = 2;
+        args.churn = 10;
     }
     let root = frameworks::root();
+    let mut kinds = Vec::new();
+    for name in &args.scenarios {
+        kinds.push(Kind::by_name(name).with_context(|| format!("unknown scenario {name}"))?);
+    }
     let mut selected = Vec::new();
     for name in &args.frameworks {
         let fw = Framework::by_name(name).with_context(|| format!("unknown framework {name}"))?;
@@ -69,8 +96,11 @@ fn main() -> anyhow::Result<()> {
     }
     let effort = Effort {
         hover_repeats: args.repeats,
+        op_repeats: args.op_repeats,
         iterations: args.iterations,
+        churn_cycles: args.churn,
     };
+    let cells = matrix(&args, &kinds, &selected);
     let stamp = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
     let run_dir = args
         .out
@@ -79,23 +109,64 @@ fn main() -> anyhow::Result<()> {
     std::fs::create_dir_all(&run_dir)?;
     link_latest(&root, &run_dir);
 
-    let total = selected.len() * args.hz.len() * args.rows.len();
+    let total = cells.len();
+    let mut outcomes = Vec::new();
+    for (index, (fw, binary, cell)) in cells.into_iter().enumerate() {
+        eprintln!("[{}/{total}] {}", index + 1, cell.dir());
+        outcomes.push(cell::run(fw, binary, cell, effort, &run_dir));
+        write_index(&run_dir, &args, effort, stamp, &outcomes)?;
+    }
+    let failed: usize = outcomes.iter().map(|c| c.errors.len()).sum();
+    eprintln!(
+        "results: {} ({failed} failed measurements)",
+        run_dir.display()
+    );
+    Ok(())
+}
+
+/// Returns every cell of the selected scenarios and frameworks, in run order: scenario, then
+/// framework, variant, refresh rate and size.
+fn matrix<'a>(
+    args: &Args,
+    kinds: &[Kind],
+    selected: &'a [(&'static Framework, PathBuf)],
+) -> Vec<(&'static Framework, &'a Path, Cell)> {
     let mut cells = Vec::new();
-    let mut index = 0;
-    for (fw, binary) in &selected {
-        for &hz in &args.hz {
-            for &rows in &args.rows {
-                index += 1;
-                let cell = Cell { hz, rows };
-                eprintln!("[{index}/{total}] {} {hz} Hz, {rows} rows", fw.name);
-                cells.push(cell::run(fw, binary, cell, effort, &run_dir));
-                write_index(&run_dir, &args, effort, stamp, &cells)?;
+    for &kind in kinds {
+        let rates = if args.hz.is_empty() {
+            kind.rates(args.quick)
+        } else {
+            args.hz.clone()
+        };
+        let rows = if args.rows.is_empty() {
+            kind.row_counts(args.quick)
+        } else {
+            args.rows.clone()
+        };
+        for (fw, binary) in selected {
+            let variants = kind.variants(fw).into_iter().filter(|v| {
+                args.variants.is_empty() || *v == "default" || args.variants.iter().any(|a| a == v)
+            });
+            for variant in variants {
+                for &hz in &rates {
+                    for &count in &rows {
+                        for updates in kind.update_counts() {
+                            let cell = Cell {
+                                kind,
+                                framework: fw.name.to_owned(),
+                                variant: variant.to_owned(),
+                                hz,
+                                rows: count,
+                                updates,
+                            };
+                            cells.push((*fw, binary.as_path(), cell));
+                        }
+                    }
+                }
             }
         }
     }
-    let failed: usize = cells.iter().map(|c| c.errors.len()).sum();
-    eprintln!("results: {} ({failed} failed scenarios)", run_dir.display());
-    Ok(())
+    cells
 }
 
 fn write_index(
@@ -107,14 +178,16 @@ fn write_index(
 ) -> anyhow::Result<()> {
     let root = frameworks::root();
     let index = json!({
+        "format": FORMAT,
         "started_unix": stamp,
+        "scenarios": args.scenarios,
         "frameworks": args.frameworks,
-        "rows": args.rows,
-        "hz": args.hz,
         "effort": effort,
-        "output": { "width": matrix::OUTPUT.0, "height": matrix::OUTPUT.1 },
-        "row_height": matrix::ROW_HEIGHT,
-        "scroll": { "velocity": matrix::SCROLL_VELOCITY, "seconds": matrix::SCROLL_SECONDS },
+        "output": { "width": layout::OUTPUT.0, "height": layout::OUTPUT.1 },
+        "row_height": layout::ROW_HEIGHT,
+        "header_height": layout::HEADER_HEIGHT,
+        "scroll": { "velocity": steps::SCROLL_VELOCITY, "seconds": steps::SCROLL_SECONDS },
+        "tick_ms": scenarios::TICK_MS,
         "revisions": {
             "gui-bench": revision(&root),
             "fakeland": revision(&root.join("../fakeland")),

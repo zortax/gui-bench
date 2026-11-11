@@ -1,4 +1,4 @@
-"""Writes every plot and the summary CSV of a run into `<run>/plots/` and `<run>/summary.csv`.
+"""Writes every plot of a run into `<run>/plots/<scenario>/` and the tidy `<run>/summary.csv`.
 
 Usage: python3 plots/all.py [run dir]   (default: results/latest)
 """
@@ -6,25 +6,42 @@ Usage: python3 plots/all.py [run dir]   (default: results/latest)
 import sys
 
 import common as c
+import efficiency
 import export
+import footprint
 import hover_latency
 import hover_stages
+import resize
 import scroll
+import spinner
 import startup
+import table
+import ticker
+import typing_latency
 import zgui_phases
+
+
+def outputs(run):
+    for scenario in ("rows", "virtual"):
+        yield hover_latency.plot(run, scenario=scenario)
+        yield hover_latency.plot(run, log=True, scenario=scenario)
+        yield hover_stages.plot(run, scenario)
+        yield scroll.plot(run, scenario)
+        yield startup.plot(run, scenario)
+    yield zgui_phases.plot(run)
+    yield from table.plot(run)
+    yield from ticker.plot(run)
+    yield from spinner.plot(run)
+    yield typing_latency.plot(run)
+    yield resize.plot(run)
+    yield from footprint.plot(run)
+    yield efficiency.plot(run)
+    yield export.export(run)
 
 
 def main():
     run = c.load(sys.argv[1] if len(sys.argv) > 1 else "results/latest")
-    outputs = [
-        hover_latency.plot(run),
-        hover_stages.plot(run),
-        scroll.plot(run),
-        startup.plot(run),
-        zgui_phases.plot(run),
-        export.export(run),
-    ]
-    for path in outputs:
+    for path in outputs(run):
         if path:
             print(path)
 

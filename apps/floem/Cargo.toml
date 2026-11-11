@@ -1,0 +1,17 @@
+[package]
+name = "floem-bench"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+publish = false
+
+# Its own workspace, so the floem stack resolves apart from every other app.
+[workspace]
+
+[dependencies]
+# floem main pinned to a rev: the 0.2.0 release dates from November 2024, and main carries about
+# 300 commits on top of it (new style engine, ui-events input, a winit 0.31 fork, a box tree).
+floem = { git = "https://github.com/lapce/floem", rev = "1351ffb162faeb8be983f1301d718a0d5fb59c27", version = "0.2.0" }
+
+[profile.release]
+debug = 1

@@ -1,0 +1,16 @@
+[package]
+name = "freya-056a5b4-bench"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+publish = false
+
+# The freya app on freya main at 056a5b4 (0.6.0-alpha.1, 2026-11-07): the same sources (`src`
+# links to `../freya/src`).
+[workspace]
+
+[dependencies]
+freya = { git = "https://github.com/marc2332/freya", rev = "056a5b4fc6efce1e8a7054436a2119b30d14ab4a" }
+
+[profile.release]
+debug = 1

@@ -1,0 +1,17 @@
+[package]
+name = "zgui-bench"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+publish = false
+
+# Its own workspace, so the zgui stack resolves apart from every other app.
+[workspace]
+
+[dependencies]
+zgui = { path = "../../../zgui-fakeland-marks/crates/zgui", features = ["fakeland-marks"] }
+zgui-ui = { path = "../../../zgui-fakeland-marks/crates/zgui-ui" }
+zgui-ui-tokens = { path = "../../../zgui-fakeland-marks/crates/zgui-ui-tokens" }
+
+[profile.release]
+debug = 1
