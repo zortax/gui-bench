@@ -1,0 +1,106 @@
+// Design tokens. Light follows the gui-bench plots (warm paper page, lighter cards, ink in three
+// steps); dark follows Oldworld. Components use only these tokens.
+@use "palette";
+
+@mixin light {
+  --page: #ebe9e4;
+  --surface: #faf9f7;
+  --raised: #ffffff;
+  --band: #f3f1ed;
+  --sunk: #f1efea;
+  --text: #2c2a30;
+  --text-2: #5d5963;
+  --muted: #8b8693;
+  --grid: #ebe8e3;
+  --rule: #d8d5cf;
+  --hover: oklch(0 0 0 / 4.5%);
+  --press: oklch(0 0 0 / 8%);
+  --float-border: oklch(0 0 0 / 10%);
+  --shadow: 0 6px 24px oklch(0 0 0 / 12%), 0 1px 3px oklch(0 0 0 / 8%);
+  --scrim: oklch(0 0 0 / 22%);
+  --accent: #4a5a8f;
+  --accent-soft: #e3e6f1;
+  --ok: #3f7a58;
+  --warn: #9a6a3c;
+  --err: #a63d61;
+  --info: #4a5a8f;
+  --seq-0: #f1f0f4;
+  --seq-1: #c3cceb;
+  --seq-2: #92a2d5;
+  --seq-3: #4a5a8f;
+  --seq-4: #2c3660;
+  --seq-text-light: #2c2a30;
+  --seq-text-dark: #faf9f7;
+  --div-lo: #4a5a8f;
+  --div-hi: #a8542f;
+  --div-mid: #e6e3de;
+  @include palette.palette-light;
+}
+
+@mixin dark {
+  --page: #131314;
+  --surface: #1b1b1c;
+  --raised: #232326;
+  --band: #202022;
+  --sunk: #161617;
+  --text: #c9c7cd;
+  --text-2: #b4b1ba;
+  --muted: #8b8693;
+  --grid: #262628;
+  --rule: #313134;
+  --hover: oklch(1 0 0 / 5%);
+  --press: oklch(1 0 0 / 9%);
+  --float-border: oklch(1 0 0 / 9%);
+  --shadow: 0 8px 28px oklch(0 0 0 / 55%), 0 1px 3px oklch(0 0 0 / 40%);
+  --scrim: oklch(0 0 0 / 50%);
+  --accent: #92a2d5;
+  --accent-soft: #262a38;
+  --ok: #90b99f;
+  --warn: #e6b99d;
+  --err: #ea83a5;
+  --info: #92a2d5;
+  --seq-0: #202022;
+  --seq-1: #2f3548;
+  --seq-2: #4f5c87;
+  --seq-3: #7787bd;
+  --seq-4: #a9b7e6;
+  --seq-text-light: #c9c7cd;
+  --seq-text-dark: #131314;
+  --div-lo: #92a2d5;
+  --div-hi: #f5a191;
+  --div-mid: #2a2a2c;
+  @include palette.palette-dark;
+}
+
+:root {
+  @include light;
+  color-scheme: light;
+  --font: "Libertinus Sans", "Libertinus Sans Fallback", "Segoe UI", system-ui, sans-serif;
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+  --fs: 14.5px;
+  --fs-s: 13px;
+  --fs-xs: 12px;
+  --fs-l: 16.5px;
+  --fs-xl: 21px;
+  --ctl: 26px;
+  --r: 6px;
+  --r-l: 8px;
+  --gap: 14px;
+  --side: 236px;
+  --top: 44px;
+  --tabs: 36px;
+  --t: 90ms;
+  --content: 1400px;
+}
+
+:root[data-theme="dark"] {
+  @include dark;
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    @include dark;
+    color-scheme: dark;
+  }
+}

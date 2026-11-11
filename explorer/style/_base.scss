@@ -1,0 +1,156 @@
+// Fonts, the page, text and buttons.
+@font-face {
+  font-family: "Libertinus Sans";
+  src: url("/fonts/LibertinusSans-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Libertinus Sans";
+  src: url("/fonts/LibertinusSans-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Libertinus Sans";
+  src: url("/fonts/LibertinusSans-Italic.ttf") format("truetype");
+  font-style: italic;
+  font-display: swap;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: var(--fs);
+  line-height: 1.35;
+  -webkit-font-smoothing: antialiased;
+  font-kerning: normal;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+button,
+select,
+input {
+  font: inherit;
+  color: inherit;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  font-weight: 700;
+  letter-spacing: 0.005em;
+}
+
+.gx-muted {
+  color: var(--muted);
+}
+
+.gx-num {
+  font-variant-numeric: tabular-nums;
+}
+
+.gx-notfound {
+  padding: 40px;
+  color: var(--muted);
+}
+
+.gx-icon {
+  width: 1.15em;
+  height: 1.15em;
+  flex: none;
+  display: block;
+}
+
+.gx-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: var(--ctl);
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--r);
+  background: var(--band);
+  color: var(--text-2);
+  cursor: pointer;
+  transition: background var(--t);
+  &:hover:not(:disabled) {
+    background: var(--press);
+    color: var(--text);
+  }
+  &:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
+}
+
+.gx-btn--small {
+  height: 21px;
+  padding: 0 6px;
+  font-size: var(--fs-xs);
+}
+
+.gx-btn--link {
+  height: auto;
+  padding: 0;
+  background: none;
+  color: var(--accent);
+  &:hover:not(:disabled) {
+    background: none;
+    text-decoration: underline;
+    color: var(--accent);
+  }
+}
+
+.gx-iconbtn {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r);
+  background: none;
+  color: var(--text-2);
+  cursor: pointer;
+  transition: background var(--t), color var(--t);
+  &:hover {
+    background: var(--hover);
+    color: var(--text);
+  }
+  &[data-active] {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+}
+
+.gx-iconbtn--tiny {
+  width: 16px;
+  height: 16px;
+  .gx-icon {
+    width: 11px;
+    height: 11px;
+  }
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}

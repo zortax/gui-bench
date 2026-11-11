@@ -1,0 +1,10 @@
+[package]
+name = "explorer-core"
+description = "Wire types, statistics and chart math of the gui-bench explorer"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+serde.workspace = true

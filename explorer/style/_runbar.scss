@@ -1,0 +1,113 @@
+// The run controls of the top bar and the run list.
+.gx-runbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.gx-runbar__run {
+  height: 30px;
+  padding: 0 6px 0 9px;
+  border-radius: var(--r);
+  background: var(--surface);
+  box-shadow: 0 0 0 1px var(--float-border);
+  color: var(--text);
+  font-weight: 700;
+  &:hover {
+    background: var(--raised);
+  }
+}
+
+.gx-runbar__name {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gx-runbar__facts {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-s);
+  color: var(--text-2);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.gx-runbar__cmp {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 4px 0 8px;
+  border-radius: var(--r);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: var(--fs-s);
+}
+
+.gx-runlist {
+  display: grid;
+  gap: 1px;
+  min-width: 460px;
+}
+
+.gx-runlist__wait {
+  padding: 12px;
+  color: var(--muted);
+}
+
+.gx-runrow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 2px 8px;
+  padding: 6px 8px;
+  border-radius: var(--r);
+  &:hover {
+    background: var(--hover);
+  }
+  &[data-current] {
+    background: var(--accent-soft);
+  }
+  &[data-off] {
+    opacity: 0.55;
+  }
+  > .gx-badge {
+    justify-self: start;
+  }
+}
+
+.gx-runrow__name {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.gx-runrow__meta {
+  grid-column: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: var(--fs-s);
+  color: var(--text-2);
+}
+
+.gx-runrow__fail {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--err);
+}
+
+.gx-runrow__why {
+  grid-column: 1 / -1;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+
+.gx-runrow > .gx-btn {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}

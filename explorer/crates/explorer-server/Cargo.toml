@@ -1,0 +1,20 @@
+[package]
+name = "explorer-server"
+description = "The web server of the gui-bench explorer"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+axum.workspace = true
+clap.workspace = true
+explorer-app = { workspace = true, features = ["ssr"] }
+explorer-data.workspace = true
+leptos = { workspace = true, features = ["ssr"] }
+leptos_axum.workspace = true
+tokio.workspace = true
+tower-http = { workspace = true, features = ["fs"] }
+tracing.workspace = true
+tracing-subscriber.workspace = true

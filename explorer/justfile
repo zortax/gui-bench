@@ -1,0 +1,26 @@
+# The gui-bench explorer: `just -f explorer/justfile <recipe>` from the repository root.
+
+# Serve with rebuilds on change at http://127.0.0.1:3080.
+dev:
+    cargo leptos watch
+
+# Build the server and the wasm in release mode.
+build:
+    cargo leptos build --release
+
+# Build in release mode and serve, optionally with another results directory.
+serve *args:
+    cargo leptos build --release
+    LEPTOS_SITE_ROOT=target/site LEPTOS_SITE_ADDR=127.0.0.1:3080 target/release/explorer-server {{args}}
+
+# Check formatting and lints of both targets, and run the tests.
+check:
+    cargo fmt --check
+    cargo clippy -p explorer-core -p explorer-data --all-targets -- -D warnings
+    cargo clippy -p explorer-server -- -D warnings
+    cargo clippy -p explorer-frontend --target wasm32-unknown-unknown -- -D warnings
+    cargo test -p explorer-core -p explorer-data
+
+# Run the tests.
+test:
+    cargo test -p explorer-core -p explorer-data

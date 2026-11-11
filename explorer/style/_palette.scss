@@ -1,0 +1,39 @@
+// Framework colors per slot and theme, from the hues of plots/common.py. Generated values:
+// light marks mix the pastel toward the ink, editions go one step deeper; dark marks are the
+// Oldworld pastels. `soft` fills bands and ranges, `ink` writes names and values.
+@mixin palette-light {
+  --fw-0-mark: #7c8cc0; --fw-0-soft: #92a2d5; --fw-0-ink: #4a5a8f;
+  --fw-0e-mark: #6070a5; --fw-0e-soft: #7c8cc0; --fw-0e-ink: #40496e;
+  --fw-1-mark: #de8a74; --fw-1-soft: #f5a191; --fw-1-ink: #a8542f;
+  --fw-1e-mark: #c06c4e; --fw-1e-soft: #de8a74; --fw-1e-ink: #7d452f;
+  --fw-2-mark: #76a588; --fw-2-soft: #90b99f; --fw-2-ink: #3f7a58;
+  --fw-2e-mark: #588d6e; --fw-2e-soft: #78a68a; --fw-2e-ink: #385e4a;
+  --fw-3-mark: #b88a64; --fw-3-soft: #e6b99d; --fw-3-ink: #8a5a2c;
+  --fw-3e-mark: #9f7045; --fw-3e-soft: #ca9c7b; --fw-3e-ink: #69492d;
+  --fw-4-mark: #cc85b3; --fw-4-soft: #e29eca; --fw-4-ink: #9a4a7e;
+  --fw-4e-mark: #b06596; --fw-4e-soft: #cc85b3; --fw-4e-ink: #743f63;
+  --fw-5-mark: #6e9fa4; --fw-5-soft: #85b5ba; --fw-5-ink: #3d7076;
+  --fw-5e-mark: #53858b; --fw-5e-soft: #6fa0a6; --fw-5e-ink: #37585e;
+  --fw-6-mark: #988cbd; --fw-6-soft: #aca1cf; --fw-6-ink: #6a5a94;
+  --fw-6e-mark: #7f70a6; --fw-6e-soft: #988cbd; --fw-6e-ink: #544971;
+  --fw-7-mark: #d66e91; --fw-7-soft: #ea83a5; --fw-7-ink: #a63d61;
+  --fw-7e-mark: #bc5377; --fw-7e-soft: #d66e91; --fw-7e-ink: #7b3650;
+}
+@mixin palette-dark {
+  --fw-0-mark: #92a2d5; --fw-0-soft: #51586f; --fw-0-ink: #9fadda;
+  --fw-0e-mark: #7484b8; --fw-0e-soft: #48506a; --fw-0e-ink: #8292c6;
+  --fw-1-mark: #f5a191; --fw-1-soft: #7d5751; --fw-1-ink: #f6ac9e;
+  --fw-1e-mark: #d58168; --fw-1e-soft: #784e42; --fw-1e-ink: #e4907b;
+  --fw-2-mark: #90b99f; --fw-2-soft: #506257; --fw-2-ink: #9dc1ab;
+  --fw-2e-mark: #6e9f81; --fw-2e-soft: #445d4e; --fw-2e-ink: #7eab8f;
+  --fw-3-mark: #e6b99d; --fw-3-soft: #766256; --fw-3-ink: #e9c1a9;
+  --fw-3e-mark: #bf916e; --fw-3e-soft: #6d5645; --fw-3e-ink: #d2a484;
+  --fw-4-mark: #e29eca; --fw-4-soft: #75566a; --fw-4-ink: #e5aad0;
+  --fw-4e-mark: #c47baa; --fw-4e-soft: #704b63; --fw-4e-ink: #d28cb9;
+  --fw-5-mark: #85b5ba; --fw-5-soft: #4b6063; --fw-5-ink: #94bec2;
+  --fw-5e-mark: #67989d; --fw-5e-soft: #415a5c; --fw-5e-ink: #75a6ab;
+  --fw-6-mark: #aca1cf; --fw-6-soft: #5c576d; --fw-6-ink: #b6acd5;
+  --fw-6e-mark: #9083b6; --fw-6e-soft: #564f69; --fw-6e-ink: #9d91c2;
+  --fw-7-mark: #ea83a5; --fw-7-soft: #784a5a; --fw-7-ink: #ed92b0;
+  --fw-7e-mark: #cd6688; --fw-7e-soft: #744052; --fw-7e-ink: #db7496;
+}

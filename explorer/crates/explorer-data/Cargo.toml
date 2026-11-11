@@ -1,0 +1,15 @@
+[package]
+name = "explorer-data"
+description = "Run catalog, report parsing and run cache of the gui-bench explorer"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+explorer-core.workspace = true
+rayon.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
