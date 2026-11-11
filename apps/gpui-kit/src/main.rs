@@ -25,7 +25,7 @@ const APP_ID: &str = "gui-bench.gpui-kit";
 
 fn main() {
     let scenario = cli::from_env(NAME, &[Variant::Fine, Variant::Coarse]);
-    // The same sources build `gpui-kit-fast-bench` with the `gpui-fast` feature.
+    // `apps/gpui-kit-fast` builds the same sources with the `gpui-fast` feature.
     eprintln!("{NAME}: gpui-fast {}", gpui_kit::GPUI_FAST);
 
     gpui_kit::application().run(move |cx| {

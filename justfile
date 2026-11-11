@@ -2,7 +2,7 @@
 default: build run plots
 
 # The framework apps under `apps/`.
-apps := "zgui gpui-kit gpui-kit-fast freya freya-056a5b4 vizia floem iced egui"
+apps := "zgui gpui-kit gpui-kit-fast freya freya-056a5b4 vizia floem iced egui dioxus"
 
 # Memory limits: the runner and the apps it launches, and one app build. Each runs in its own
 # systemd scope without swap, so a runaway process is killed there instead of stalling the host.
@@ -13,11 +13,16 @@ limit := "systemd-run --user --scope -q -p MemorySwapMax=0 -p MemoryMax="
 # Build every framework app and the runner in release mode.
 build:
     for app in {{apps}}; do just build-app $app; done
+    just build-editions
     {{limit}}{{build_mem}} cargo build --release -p gui-bench
 
 # Build one framework app, such as `just build-app iced`.
 build-app name:
     cd apps/{{name}} && {{limit}}{{build_mem}} cargo build --release
+
+# Build the editions that are feature builds of an app: Dioxus Native with the Skia renderer.
+build-editions:
+    cd apps/dioxus && {{limit}}{{build_mem}} cargo build --release --no-default-features --features skia --target-dir target/skia
 
 # Run the benchmark matrix, for example `just run --scenarios table,ticker --frameworks zgui`.
 run *args:

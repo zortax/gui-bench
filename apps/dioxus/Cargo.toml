@@ -1,0 +1,43 @@
+[package]
+name = "dioxus-bench"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+publish = false
+
+# Its own workspace, so the Dioxus Native stack resolves apart from every other app.
+[workspace]
+
+# The renderer: vello-hybrid (the dioxus-native default) or Skia. `just build` builds both, the
+# Skia one with `--no-default-features --features skia` into `target/skia`. dioxus-native
+# 0.8.0-alpha.3 does not compile with both renderers on (it exports wgpu `Features`/`Limits` for
+# vello-hybrid while its renderer module picks Skia), so the features exclude each other.
+[features]
+default = ["vello-hybrid"]
+vello-hybrid = ["dioxus-native/vello-hybrid"]
+skia = ["dioxus-native/skia"]
+
+[dependencies]
+# Without the `native` feature of `dioxus`, which would turn on every default feature of
+# dioxus-native, the renderer among them.
+dioxus = "0.8.0-alpha.3"
+# The app launches through dioxus-native and uses its window hooks, as the Blitz examples do. These
+# are its default features without the renderer.
+dioxus-native = { version = "0.8.0-alpha.3", default-features = false, features = [
+    "accessibility",
+    "hot-reload",
+    "net",
+    "html",
+    "svg",
+    "system-fonts",
+    "clipboard",
+    "file-dialog",
+    "woff",
+    "text-transform-icu",
+    "apple-font-embolden",
+] }
+# The ticker sleeps with tokio, as the Dioxus docs do; dioxus-native runs a tokio runtime.
+tokio = { version = "1", features = ["time"] }
+
+[profile.release]
+debug = 1

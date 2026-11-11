@@ -49,6 +49,7 @@ The `table` and `ticker` scenarios run in every variant the framework has:
 | gpui-kit | an `Entity` per row embedded with `.cached()`, notified alone | one view over a `Vec`, `cx.notify()` on any change (GPUI's default) | – |
 | iced | `keyed_column` with `lazy((id, version, selected))` per row | a plain `column` rebuilt in `view` (iced's default) | – |
 | egui | – (`default`: immediate mode builds every row every frame) | | |
+| dioxus | keyed `Row` components reading a dioxus-stores `Store<HashMap<id, Item>>` per id, an `is_selected` prop | rows built inline in the root from one `Signal<Vec<Row>>` | as fine, every row reads one selection signal |
 
 `plots/table.py` draws the coarse/fine latency ratio per framework and
 operation. Some frameworks redo more than the variant suggests: GPUI marks
@@ -97,15 +98,20 @@ operations: every probe repeat runs the operation and its undo.
 | floem | `apps/floem` | git `lapce/floem` at `1351ffb` (main, 2026-09-23); the 0.2.0 release dates from 2024 | vger on wgpu Vulkan |
 | iced | `apps/iced` | `iced` 0.14.0 | wgpu Vulkan |
 | egui | `apps/egui` | `eframe` 0.37.0 | wgpu Vulkan |
+| dioxus | `apps/dioxus` | `dioxus` and `dioxus-native` 0.8.0-alpha.3 (Dioxus Native on Blitz 0.3.0-beta.4) | vello-hybrid on wgpu Vulkan |
+| dioxus-skia | `apps/dioxus` (feature `skia`, built into `target/skia`) | the dioxus app with dioxus-native's Skia renderer | Skia |
 
 Crates come from crates.io unless the table says otherwise. All apps share
 the command line in `apps/shared/cli.rs` and the spec in `apps/shared/spec.rs`.
 
 Each app is its own cargo workspace, so the GUI stacks never share a
-dependency resolve. An edition of a framework (`gpui-kit-fast`, `freya-056a5b4`) is
-its own workspace too, with its `src` linked to the framework's sources, so
-both builds run the same code; plots give it the framework's hue one step
-deeper. The runner depends on fakeland by path (`../fakeland`), with
+dependency resolve. An edition of a framework is another build of the same sources. `dioxus-skia`
+is a feature build of `apps/dioxus` into `target/skia` (`just build-editions`).
+`gpui-kit-fast` and `freya-056a5b4` pin dependency versions that cannot share
+a lock file with their framework (GPUI Fast pins `taffy` and others exactly;
+the freya revision links another skia-bindings), so each is its own small
+workspace whose `src` links to the framework's sources. Plots give an edition
+its framework's hue one step deeper. The runner depends on fakeland by path (`../fakeland`), with
 the `nvml` feature for per-process GPU numbers on NVIDIA.
 
 ## Run
@@ -128,7 +134,9 @@ every cell directory `<scenario>/<framework>/<variant>/<hz>hz/<size>/` holds
 measurement (`idle.json`, `hover.json`, `scroll.json`, `op-<name>.json`,
 `churn.json`, `pacing.json`, `typing.json`, `filter.json`, `resize.json`,
 `scale.json`; zgui also `phases-<name>.json`). The size is the row count,
-with `-u<updates>` for the ticker. `results/latest` links to the newest run.
+with `-u<updates>` for the ticker. `results/latest` links to the newest run. `just run --resume --out results/<run>`
+continues a run: cells whose `cell.json` has no errors keep their results, the
+others run again.
 
 ## Plots
 
@@ -204,6 +212,14 @@ Each script also runs on its own: `python3 plots/table.py results/latest`.
   square on a `canvas` (vger draws a rotated rounded rect as its bounding
   box). floem also drops a focus request made while the views are built; the
   search input asks again from a zero timer, as floem's own dropdown does.
+- Dioxus Native (Blitz) styles with a stylesheet and turns the spinner with a
+  CSS `@keyframes` animation. With vello-hybrid the animation does not start
+  until an input asks for a redraw (blitz-shell paints the first frame without
+  asking for the next one while animating); the layout check moves the
+  pointer, which starts it. Blitz moves 20 px per wheel line; the app scrolls
+  15 px. Dioxus has no virtualized list; `virtual` renders the visible range
+  from `onscroll`. Keys come from dioxus-native's window event hook, since
+  Blitz sends key events to the focused node only.
 - iced has no virtualized list; its `virtual` scenario builds the visible
   rows from the `on_scroll` viewport, the approach the iced docs suggest.
 - The text input is each framework's built-in single-line input, focused at

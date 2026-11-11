@@ -37,8 +37,8 @@ FONTS = ["Libertinus Sans", "DejaVu Sans"]
 # Frameworks take Oldworld hues in fixed order, so a framework keeps its color whatever a run
 # selects. Each hue has a pastel (the dark scheme's tone, for bands and fills), an ink (the light
 # scheme's tone, for text) and a mid tone between them for lines and marks, set so it holds on
-# paper. Rose is the eighth hue and stays free.
-FRAMEWORKS = ["zgui", "gpui-kit", "freya", "vizia", "floem", "iced", "egui"]
+# paper.
+FRAMEWORKS = ["zgui", "gpui-kit", "freya", "vizia", "floem", "iced", "egui", "dioxus"]
 HUES = [
     ("#92a2d5", "#4a5a8f", 0.3),   # blue
     ("#f5a191", "#a8542f", 0.3),   # orange
@@ -63,7 +63,7 @@ PASTELS = [p for p, _, _ in HUES]
 INKS = [i for _, i, _ in HUES]
 # An edition of a framework (another build of the same app) takes its framework's hue, one step
 # deeper, and sorts right after it.
-EDITIONS = {"gpui-kit-fast": "gpui-kit", "freya-056a5b4": "freya"}
+EDITIONS = {"gpui-kit-fast": "gpui-kit", "freya-056a5b4": "freya", "dioxus-skia": "dioxus"}
 # Variants of the table and ticker are a second encoding on top of the framework color.
 VARIANTS = ["fine", "shared", "coarse", "default"]
 VARIANT_MARKER = {"fine": "o", "shared": "D", "coarse": "s", "default": "o"}

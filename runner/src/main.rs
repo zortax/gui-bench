@@ -39,7 +39,7 @@ struct Args {
     #[arg(
         long,
         value_delimiter = ',',
-        default_value = "zgui,gpui-kit,gpui-kit-fast,freya,freya-056a5b4,vizia,floem,iced,egui"
+        default_value = "zgui,gpui-kit,gpui-kit-fast,freya,freya-056a5b4,vizia,floem,iced,egui,dioxus,dioxus-skia"
     )]
     frameworks: Vec<String>,
     /// Only these variants of the table and ticker scenarios, comma separated. All by default.
@@ -67,6 +67,10 @@ struct Args {
     /// A small matrix for a quick check: the smallest sizes at 60 Hz with fewer repeats.
     #[arg(long)]
     quick: bool,
+    /// Continue a run in `--out`: cells whose `cell.json` has no errors keep their results, the
+    /// other cells run again.
+    #[arg(long, requires = "out")]
+    resume: bool,
     /// The run directory. The default is `results/run-<unix time>`.
     #[arg(long)]
     out: Option<PathBuf>,
@@ -112,11 +116,25 @@ fn main() -> anyhow::Result<()> {
     let total = cells.len();
     let mut outcomes = Vec::new();
     for (index, (fw, binary, cell)) in cells.into_iter().enumerate() {
+        let dir = run_dir.join(cell.dir());
+        if args.resume {
+            if let Some(done) = finished(&dir) {
+                eprintln!("[{}/{total}] {} (kept)", index + 1, cell.dir());
+                outcomes.push(done);
+                continue;
+            }
+            let _ = std::fs::remove_dir_all(&dir);
+        }
         eprintln!("[{}/{total}] {}", index + 1, cell.dir());
-        outcomes.push(cell::run(fw, binary, cell, effort, &run_dir));
+        let outcome = cell::run(fw, binary, cell, effort, &run_dir);
+        outcomes.push(serde_json::to_value(outcome)?);
         write_index(&run_dir, &args, effort, stamp, &outcomes)?;
     }
-    let failed: usize = outcomes.iter().map(|c| c.errors.len()).sum();
+    write_index(&run_dir, &args, effort, stamp, &outcomes)?;
+    let failed: usize = outcomes
+        .iter()
+        .filter_map(|c| c["errors"].as_array().map(Vec::len))
+        .sum();
     eprintln!(
         "results: {} ({failed} failed measurements)",
         run_dir.display()
@@ -169,12 +187,20 @@ fn matrix<'a>(
     cells
 }
 
+/// Returns the outcome of a cell that a previous run finished without errors, or `None`.
+fn finished(dir: &Path) -> Option<serde_json::Value> {
+    let text = std::fs::read_to_string(dir.join("cell.json")).ok()?;
+    let outcome: serde_json::Value = serde_json::from_str(&text).ok()?;
+    let clean = outcome["errors"].as_array().is_some_and(Vec::is_empty);
+    clean.then_some(outcome)
+}
+
 fn write_index(
     run_dir: &Path,
     args: &Args,
     effort: Effort,
     stamp: u64,
-    cells: &[cell::CellOutcome],
+    cells: &[serde_json::Value],
 ) -> anyhow::Result<()> {
     let root = frameworks::root();
     let index = json!({
@@ -201,7 +227,10 @@ fn write_index(
 /// Returns the short commit of a checkout, with `+dirty` when it has changes.
 fn revision(path: &Path) -> Option<String> {
     let git = |args: &[&str]| {
+        // `--no-optional-locks`: a status refresh takes no `index.lock`, so a commit that runs
+        // while the matrix runs never meets a held lock.
         Command::new("git")
+            .arg("--no-optional-locks")
             .arg("-C")
             .arg(path)
             .args(args)
