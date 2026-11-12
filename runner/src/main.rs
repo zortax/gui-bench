@@ -6,6 +6,7 @@
 mod cell;
 mod frameworks;
 mod layout;
+mod limits;
 mod phases;
 mod scenarios;
 mod steps;
@@ -78,6 +79,7 @@ struct Args {
 
 fn main() -> anyhow::Result<()> {
     let mut args = Args::parse();
+    limits::raise_open_files();
     if args.quick {
         args.repeats = 6;
         args.op_repeats = 4;
