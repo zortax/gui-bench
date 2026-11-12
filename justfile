@@ -14,7 +14,7 @@ limit := "systemd-run --user --scope -q -p MemorySwapMax=0 -p MemoryMax="
 build:
     for app in {{apps}}; do just build-app $app; done
     just build-editions
-    {{limit}}{{build_mem}} cargo build --release -p gui-bench
+    cd runner && {{limit}}{{build_mem}} cargo build --release
 
 # Build one framework app, such as `just build-app iced`.
 build-app name:
@@ -26,8 +26,8 @@ build-editions:
 
 # Run the benchmark matrix, for example `just run --scenarios table,ticker --frameworks zgui`.
 run *args:
-    cargo build -q --release -p gui-bench
-    env -u DISPLAY -u WAYLAND_DISPLAY {{limit}}{{run_mem}} target/release/gui-bench {{args}}
+    cd runner && cargo build -q --release
+    env -u DISPLAY -u WAYLAND_DISPLAY {{limit}}{{run_mem}} runner/target/release/gui-bench {{args}}
 
 # Run a small matrix as a quick check, for example `just quick --scenarios spinner`.
 quick *args:
@@ -43,6 +43,6 @@ plots run="results/latest":
 
 # Check the runner, and run the tests of the shared app code in one app.
 check:
-    cargo fmt --check
-    cargo clippy -p gui-bench -- -D warnings
+    cd runner && cargo fmt --check
+    cd runner && cargo clippy -- -D warnings
     cd apps/egui && cargo test --release -q

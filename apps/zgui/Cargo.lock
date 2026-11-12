@@ -5900,3 +5900,8 @@ dependencies = [
  "syn 3.0.10",
  "winnow",
 ]
+
+[[patch.unused]]
+name = "fakeland-marks"
+version = "0.1.0"
+source = "git+https://github.com/zortax/fakeland?branch=main#71695e7c5315c916649f46c1e32376cce75befa3"

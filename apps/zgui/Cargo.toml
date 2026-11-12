@@ -9,9 +9,14 @@ publish = false
 [workspace]
 
 [dependencies]
-zgui = { path = "../../../zgui-fakeland-marks/crates/zgui", features = ["fakeland-marks"] }
-zgui-ui = { path = "../../../zgui-fakeland-marks/crates/zgui-ui" }
-zgui-ui-tokens = { path = "../../../zgui-fakeland-marks/crates/zgui-ui-tokens" }
+zgui = { git = "https://github.com/zortax/zgui", branch = "feat/fakeland-marks", features = ["fakeland-marks"] }
+zgui-ui = { git = "https://github.com/zortax/zgui", branch = "feat/fakeland-marks" }
+zgui-ui-tokens = { git = "https://github.com/zortax/zgui", branch = "feat/fakeland-marks" }
 
 [profile.release]
 debug = 1
+
+# The zgui branch reaches fakeland-marks through a path beside its checkout, which a git checkout
+# lacks; this takes it from the fakeland repository instead.
+[patch."https://github.com/zortax/zgui"]
+fakeland-marks = { git = "https://github.com/zortax/fakeland", branch = "main" }

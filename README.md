@@ -89,7 +89,7 @@ operations: every probe repeat runs the operation and its undo.
 
 | Framework | App | Source | Renderer |
 |---|---|---|---|
-| zgui | `apps/zgui` | path dependency on `../zgui-fakeland-marks` (branch `feat/fakeland-marks`), feature `fakeland-marks` | wgpu Vulkan |
+| zgui | `apps/zgui` | git branch `feat/fakeland-marks` of zgui, feature `fakeland-marks` | wgpu Vulkan |
 | gpui-kit | `apps/gpui-kit` | `gpui-kit` 0.9.1 (GPUI with gpui-base and gpui-component) | wgpu Vulkan |
 | gpui-kit-fast | `apps/gpui-kit-fast` | the gpui-kit app with the `gpui-fast` feature: GPUI Fast 0.1.14 as core, platform and renderer | wgpu Vulkan |
 | freya | `apps/freya` | `freya` 0.5.1 | Skia on Vulkan |
@@ -111,8 +111,27 @@ is a feature build of `apps/dioxus` into `target/skia` (`just build-editions`).
 a lock file with their framework (GPUI Fast pins `taffy` and others exactly;
 the freya revision links another skia-bindings), so each is its own small
 workspace whose `src` links to the framework's sources. Plots give an edition
-its framework's hue one step deeper. The runner depends on fakeland by path (`../fakeland`), with
-the `nvml` feature for per-process GPU numbers on NVIDIA.
+its framework's hue one step deeper.
+
+The runner (its own workspace in `runner/`) depends on fakeland's `main` branch on GitHub, with the
+`nvml` feature for per-process GPU numbers on NVIDIA. The zgui app depends on zgui's
+`feat/fakeland-marks` branch. To build against local checkouts beside this repository, put the
+patches in a `.cargo/config.toml` of the workspace; git ignores these files:
+
+```toml
+# runner/.cargo/config.toml
+[patch."https://github.com/zortax/fakeland"]
+fakeland = { path = "../../fakeland/crates/fakeland" }
+fakeland-bench = { path = "../../fakeland/crates/fakeland-bench" }
+fakeland-trace = { path = "../../fakeland/crates/fakeland-trace" }
+fakeland-types = { path = "../../fakeland/crates/fakeland-types" }
+
+# apps/zgui/.cargo/config.toml
+[patch."https://github.com/zortax/zgui"]
+zgui = { path = "../../../zgui-fakeland-marks/crates/zgui" }
+zgui-ui = { path = "../../../zgui-fakeland-marks/crates/zgui-ui" }
+zgui-ui-tokens = { path = "../../../zgui-fakeland-marks/crates/zgui-ui-tokens" }
+```
 
 ## Run
 
