@@ -9,6 +9,7 @@ use super::charts::{Distribution, LatencyVsRows, ScrollMetric, StartupWaterfall}
 use crate::chart::{Legend, LegendItem};
 use crate::palette::{Marker, hz_dash};
 use crate::state::{RunView, Selection, use_explorer, use_param};
+use crate::views::frames::{FrameScaling, SOURCES, Source};
 use crate::views::kit::{ViewHead, WithData};
 use crate::widgets::{Empty, Segmented};
 
@@ -18,10 +19,10 @@ fn metrics() -> Vec<MetricRef> {
         ("hover", "latency", "total_ms"),
         ("hover", "latency", "input_to_commit_p50"),
         ("scroll", "scroll_smoothness", "smoothness_score"),
-        ("scroll", "frame_pacing", "fps"),
+        ("scroll", "frame_pacing", "interval_p99"),
+        ("scroll", "frame_pacing", "interval_max"),
         ("scroll", "scroll_smoothness", "missed_vblanks"),
         ("scroll", "scroll_smoothness", "tracking_ratio"),
-        ("scroll", "frame_pacing", "jank_count"),
         ("scroll", "resources", "cpu_ms_per_s"),
         ("startup", "startup", "first_present_ms"),
         ("startup", "startup", "connected_ms"),
@@ -32,6 +33,15 @@ fn metrics() -> Vec<MetricRef> {
     .iter()
     .map(|(a, b, c)| MetricRef::new(a, b, c))
     .collect()
+}
+
+/// Returns the frame source of the scroll glide of a scenario.
+fn scroll_source(scenario: &str) -> Source {
+    SOURCES
+        .iter()
+        .copied()
+        .find(|s| s.scenario == scenario && s.measurement == "scroll")
+        .unwrap_or(SOURCES[0])
 }
 
 /// The rows view.
@@ -115,13 +125,13 @@ fn Body(overview: Arc<RunOverview>, scenario: Memo<String>) -> impl IntoView {
                         </div>
                     </section>
                     <section class="gx-section">
-                        <h2>"Scroll glide" <span>"1 s at 800 px/s, touchpad without kinetic scrolling"</span></h2>
+                        <h2>"Scroll glide" <span>"1 s at 800 px/s, touchpad without kinetic scrolling · every frame in Frame times"</span></h2>
                         <div class="gx-grid">
                             <ScrollMetric data=data.clone() scenario=sc.clone() title="Smoothness" metric=MetricRef::new("scroll", "scroll_smoothness", "smoothness_score") words="score, 0 to 100 · higher is better"/>
-                            <ScrollMetric data=data.clone() scenario=sc.clone() title="Delivered frame rate" metric=MetricRef::new("scroll", "frame_pacing", "fps") words="frames per second"/>
+                            <FrameScaling data=data.clone() source=scroll_source(&sc) metric="interval_p99" title="Slowest 1 % of frames · p99" words="ms per frame, 99th percentile" per_refresh=Signal::stored(false)/>
+                            <FrameScaling data=data.clone() source=scroll_source(&sc) metric="interval_max" title="Longest gap" words="ms between two presents, worst" per_refresh=Signal::stored(false)/>
                             <ScrollMetric data=data.clone() scenario=sc.clone() title="Missed refreshes" metric=MetricRef::new("scroll", "scroll_smoothness", "missed_vblanks") words="per 1 s glide · lower is better"/>
                             <ScrollMetric data=data.clone() scenario=sc.clone() title="Tracking" metric=MetricRef::new("scroll", "scroll_smoothness", "tracking_ratio") words="content distance / input distance"/>
-                            <ScrollMetric data=data.clone() scenario=sc.clone() title="Janky frames" metric=MetricRef::new("scroll", "frame_pacing", "jank_count") words="frames 1.5× slower than the median interval"/>
                             <ScrollMetric data=data.clone() scenario=sc.clone() title="App CPU while scrolling" metric=MetricRef::new("scroll", "resources", "cpu_ms_per_s") words="CPU ms per second"/>
                         </div>
                     </section>

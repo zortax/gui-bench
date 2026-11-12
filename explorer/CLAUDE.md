@@ -3,13 +3,15 @@
 A web explorer of gui-bench runs: Leptos 0.9 (pinned `=0.9.0-rc1`) with server rendering and
 hydration through cargo-leptos and leptos_axum. The server reads `../results/<run>/` on demand;
 no run data goes into the wasm. Light theme follows the plots of `../plots/common.py`, dark theme
-follows Oldworld. Fonts come from `../plots/fonts` (served at `/fonts`).
+follows Oldworld. Text is Inter (`assets/type`, a subset served at `/type`); headings and card
+titles are Libertinus Sans from `../plots/fonts` (served at `/fonts`).
 
 ## Workspace
 - `crates/explorer-core`: pure. Wire types of the server functions (`api/`), statistics
   (`stats/`), scale, tick and label math (`scale/`), unit formatting (`units/`). Tested natively.
 - `crates/explorer-data`: server only, no Leptos. Run catalog, serde views of the run index and
-  the fakeland reports, the run cache with metric columns, the detail loaders of one cell.
+  the fakeland reports, the run cache with metric columns, the detail loaders of one cell and the
+  frame profiles of one matrix point.
 - `crates/explorer-app`: components, views, chart kernel and server functions. Features `ssr`
   (server) and `hydrate` (browser).
 - `crates/explorer-frontend`: the `hydrate()` entry (cdylib). `crates/explorer-server`: the axum
@@ -47,6 +49,11 @@ follows Oldworld. Fonts come from `../plots/fonts` (served at `/fonts`).
   own (`metric_catalog`) for the views that need it. `LocalResource` is for browser-only work.
 - Charts render at a width hint on the server (`CardCtx::width_hint`) and measure their real
   width after hydration.
+- The browser must build the markup the server rendered. serde_json parses floats exactly
+  (`float_roundtrip`), so values match bit for bit after the trip; still snap tiny remainders
+  (shares, differences) to zero before they decide whether a mark exists.
+- A view that looks at one size and rate keeps them in the URL through
+  `views/kit::use_scope`, so the server renders the same scope as the browser.
 - Charts stay cheap on hover: a chart wraps its model in one `Memo`, reads it with `with`/`read`
   (never `get` in event handlers), and highlights through reactive attributes on series, never by
   re-rendering the SVG. Series colors are CSS variables on the series group.
@@ -62,7 +69,10 @@ follows Oldworld. Fonts come from `../plots/fonts` (served at `/fonts`).
 - No JS chart libraries. Charts are SVG from `chart/`: `XyPlot`, `DotPlot`, `Heatmap` inside a
   `ChartCard`; views build models with `views/kit::Build`.
 - Build the server through cargo-leptos (`just build`): the wasm file name is fixed at compile
-  time from `LEPTOS_OUTPUT_NAME`.
+  time from `LEPTOS_OUTPUT_NAME`. Do not build `explorer-app` with plain `cargo build` between
+  cargo-leptos builds: the two share artifacts with other features, and incremental objects go
+  stale (linker: undefined hidden symbol). `CARGO_INCREMENTAL=0` avoids it; after it happened,
+  `cargo clean -p explorer-app -p explorer-server`.
 
 ## Styling
 - SCSS in `style/`, one partial per feature, BEM classes with the `gx-` prefix, `data-*`

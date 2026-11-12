@@ -155,7 +155,7 @@
 .gx-tick,
 .gx-axis-title {
   fill: var(--text-2);
-  font-size: 12.5px;
+  font-size: 11.5px;
   font-variant-numeric: tabular-nums;
 }
 
@@ -167,7 +167,7 @@
   }
   text {
     fill: var(--muted);
-    font-size: 11.5px;
+    font-size: 10.5px;
   }
 }
 
@@ -222,6 +222,21 @@
   stroke-dasharray: 2 1.5;
 }
 
+.gx-marker--from {
+  fill: var(--surface);
+  stroke-width: 1.4;
+}
+
+.gx-trail {
+  stroke-width: 1.2;
+  stroke-opacity: 0.55;
+}
+
+.gx-ptick {
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}
+
 .gx-series,
 .gx-row,
 .gx-bar,
@@ -240,16 +255,16 @@
 }
 
 .gx-pin text {
-  font-size: 11.5px;
-  font-weight: 700;
+  font-size: 10.5px;
+  font-weight: var(--strong);
 }
 
 .gx-endlabel {
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .gx-endlabel__name {
-  font-weight: 700;
+  font-weight: var(--strong);
 }
 
 .gx-endlabel__value {
@@ -380,17 +395,17 @@
 }
 
 .gx-rowlabel {
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .gx-rowvalue {
-  font-size: 12px;
+  font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
 
 .gx-rowhead {
-  font-size: 11.5px;
-  font-weight: 700;
+  font-size: 10.5px;
+  font-weight: var(--strong);
   fill: var(--muted);
   letter-spacing: 0.03em;
 }
@@ -405,17 +420,17 @@
 }
 
 .gx-nodata {
-  font-size: 11px;
+  font-size: 10.5px;
   fill: var(--muted);
 }
 
 .gx-heat__col {
-  font-size: 12.5px;
+  font-size: 11.5px;
   fill: var(--text-2);
 }
 
 .gx-heat__text {
-  font-size: 12.5px;
+  font-size: 11.5px;
   font-variant-numeric: tabular-nums;
 }
 
@@ -445,5 +460,54 @@
   cursor: pointer;
   &:hover {
     background: var(--hover);
+  }
+}
+
+.gx-lane__bg {
+  fill: var(--band);
+}
+
+.gx-lane__base {
+  opacity: 0.7;
+}
+
+.gx-lane__span {
+  fill: var(--late-0);
+}
+
+.gx-lane__gap {
+  stroke: none;
+}
+
+.gx-lane__stall {
+  fill: none;
+  stroke: var(--late-2);
+  stroke-width: 1;
+}
+
+.gx-lane__double {
+  stroke: var(--text-2);
+  stroke-width: 1.2;
+}
+
+.gx-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  vertical-align: -1px;
+}
+
+.gx-classes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 14px;
+  margin: 0 0 4px;
+  font-size: var(--fs-s);
+  color: var(--text-2);
+  span {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
   }
 }

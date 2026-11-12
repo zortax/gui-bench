@@ -1,11 +1,13 @@
 //! The provenance of a run: the index header, the host from the first report, the faked output,
-//! the framework versions the index records, and the validity tally of every report.
+//! the framework versions and invocations the index records, and the validity tally of every
+//! report.
 
 use std::collections::BTreeMap;
 use std::time::UNIX_EPOCH;
 
 use explorer_core::api::{
-    CheckStatus, CheckTally, Effort, FrameworkVersion, Provenance, Revision, ValidityTally,
+    CheckStatus, CheckTally, Effort, FrameworkVersion, Invocation, Provenance, Revision,
+    ValidityTally,
 };
 
 use super::load::LoadedCell;
@@ -39,18 +41,16 @@ pub(super) fn collect(index: &RunIndex, entry: &Entry, cells: &[LoadedCell]) -> 
             .and_then(|v| v.as_u64())
             .map(|v| v as u32)
     };
-    let revisions = index
-        .revisions
+    let revisions = revisions_of(&index.revisions);
+    let history = index
+        .history
         .iter()
-        .map(|(name, rev)| {
-            let dirty = rev.as_deref().is_some_and(|r| r.ends_with("+dirty"));
-            Revision {
-                name: name.clone(),
-                commit: rev
-                    .as_deref()
-                    .map(|r| r.trim_end_matches("+dirty").to_owned()),
-                dirty,
-            }
+        .map(|h| Invocation {
+            started_unix: h.started_unix,
+            scenarios: h.scenarios.clone(),
+            frameworks: h.frameworks.clone(),
+            revisions: revisions_of(&h.revisions),
+            accessibility: h.accessibility,
         })
         .collect();
     let versions = index
@@ -89,7 +89,21 @@ pub(super) fn collect(index: &RunIndex, entry: &Entry, cells: &[LoadedCell]) -> 
         environment,
         versions,
         validity: tally(cells),
+        accessibility: index.accessibility,
+        history,
     }
+}
+
+fn revisions_of(map: &BTreeMap<String, Option<String>>) -> Vec<Revision> {
+    map.iter()
+        .map(|(name, rev)| Revision {
+            name: name.clone(),
+            commit: rev
+                .as_deref()
+                .map(|r| r.trim_end_matches("+dirty").to_owned()),
+            dirty: rev.as_deref().is_some_and(|r| r.ends_with("+dirty")),
+        })
+        .collect()
 }
 
 fn tally(cells: &[LoadedCell]) -> ValidityTally {

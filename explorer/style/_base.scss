@@ -1,4 +1,10 @@
-// Fonts, the page, text and buttons.
+// Fonts, the page, text and buttons. Inter sets the text, Libertinus Sans the titles.
+@font-face {
+  font-family: "Inter";
+  src: url("/type/InterVariable-subset.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
 @font-face {
   font-family: "Libertinus Sans";
   src: url("/fonts/LibertinusSans-Regular.ttf") format("truetype");
@@ -55,6 +61,7 @@ h1,
 h2,
 h3 {
   margin: 0;
+  font-family: var(--display);
   font-weight: 700;
   letter-spacing: 0.005em;
 }

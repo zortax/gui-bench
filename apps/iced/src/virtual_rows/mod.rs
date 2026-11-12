@@ -1,8 +1,7 @@
 //! The virtual scenario: the rows of the rows scenario, but only the visible ones are built. iced
 //! has no virtualized list; its documented way is to track the viewport with
 //! `Scrollable::on_scroll` and build the visible range, with fixed-height spaces standing in for
-//! the rows above and below it. The rows, the scrollbar and the wheel handling are those of the
-//! rows scenario.
+//! the rows above and below it. The rows and the scrollbar are those of the rows scenario.
 
 use iced::widget::scrollable::{Direction, Viewport};
 use iced::widget::{Column, scrollable, space};
@@ -11,7 +10,6 @@ use iced::{Element, Length, Theme};
 use crate::page;
 use crate::rows::row;
 use crate::rows::scrollbar;
-use crate::rows::wheel::Wheel;
 use crate::spec;
 
 /// The rows built past each edge of the viewport.
@@ -72,11 +70,11 @@ impl VirtualRows {
             .push(below)
             .width(Length::Fill)
             .into();
-        let scroll = scrollable(rows.map(Message::Row))
+        scrollable(rows.map(Message::Row))
             .direction(Direction::Vertical(scrollbar()))
             .width(Length::Fill)
             .height(Length::Fill)
-            .on_scroll(Message::Scrolled);
-        Wheel::new(scroll).into()
+            .on_scroll(Message::Scrolled)
+            .into()
     }
 }

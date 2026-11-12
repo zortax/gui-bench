@@ -34,6 +34,11 @@
   --div-lo: #4a5a8f;
   --div-hi: #a8542f;
   --div-mid: #e6e3de;
+  --late-0: #e4e1db;
+  --late-1: #ecc7a8;
+  --late-2: #d9976a;
+  --late-3: #b5623a;
+  --late-4: #7a361c;
   @include palette.palette-light;
 }
 
@@ -69,17 +74,24 @@
   --div-lo: #92a2d5;
   --div-hi: #f5a191;
   --div-mid: #2a2a2c;
+  --late-0: #2c2c2f;
+  --late-1: #4d3832;
+  --late-2: #7d5242;
+  --late-3: #c07a5e;
+  --late-4: #f5a191;
   @include palette.palette-dark;
 }
 
 :root {
   @include light;
   color-scheme: light;
-  --font: "Libertinus Sans", "Libertinus Sans Fallback", "Segoe UI", system-ui, sans-serif;
+  --font: "Inter", "Segoe UI", system-ui, sans-serif;
+  --display: "Libertinus Sans", "Libertinus Sans Fallback", "Segoe UI", system-ui, sans-serif;
+  --strong: 600;
   --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
-  --fs: 14.5px;
-  --fs-s: 13px;
-  --fs-xs: 12px;
+  --fs: 13.5px;
+  --fs-s: 12.5px;
+  --fs-xs: 11.5px;
   --fs-l: 16.5px;
   --fs-xl: 21px;
   --ctl: 26px;

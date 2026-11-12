@@ -17,7 +17,7 @@ const DEFAULT_UPDATES: usize = 1;
 const DEFAULT_INTERVAL_MS: u64 = 16;
 
 /// The usage line of every app.
-pub const USAGE: &str = "[--scenario rows|table|ticker|spinner|typing|search|virtual] [--rows N] \
+pub const USAGE: &str = "[--scenario rows|table|ticker|spinner|typing|search|virtual|dashboard] [--rows N] \
                          [--variant fine|coarse|shared|default] [--updates K] [--interval-ms T]";
 
 /// How a stateful scenario holds and updates its rows.
@@ -83,6 +83,8 @@ pub enum Scenario {
     Search { count: usize, filter: bool },
     /// The rows of `Rows` in the framework's virtualized list: only the visible rows exist.
     Virtual { count: usize },
+    /// The analytics dashboard of `dashboard.rs` with `count` orders in its table.
+    Dashboard { count: usize },
 }
 
 impl Scenario {
@@ -104,6 +106,7 @@ impl Scenario {
             Self::Search { filter: true, .. } => "gui-bench search",
             Self::Search { .. } => "gui-bench typing",
             Self::Virtual { .. } => "gui-bench virtual",
+            Self::Dashboard { .. } => "gui-bench dashboard",
         }
     }
 }
@@ -198,6 +201,7 @@ pub fn parse(mut args: impl Iterator<Item = String>) -> Result<Scenario, CliErro
             filter: true,
         }),
         "virtual" => Ok(Scenario::Virtual { count }),
+        "dashboard" => Ok(Scenario::Dashboard { count }),
         _ => Err(CliError::UnknownScenario(scenario)),
     }
 }
@@ -333,6 +337,14 @@ mod tests {
         );
         let rows = run(&["--variant", "shared"]).unwrap();
         assert_eq!(require(rows, &[Variant::Fine]), Ok(rows));
+    }
+
+    #[test]
+    fn dashboard_takes_the_row_count() {
+        assert_eq!(
+            run(&["--scenario", "dashboard", "--rows", "50"]),
+            Ok(Scenario::Dashboard { count: 50 })
+        );
     }
 
     #[test]

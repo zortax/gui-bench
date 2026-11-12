@@ -4,6 +4,7 @@
 
 #[path = "../../shared/cli.rs"]
 mod cli;
+mod dashboard;
 mod page;
 mod rows;
 mod search;
@@ -16,6 +17,7 @@ mod virtual_rows;
 use zgui::prelude::*;
 
 use crate::cli::{Scenario, Variant};
+use crate::dashboard::DashboardProps;
 use crate::rows::RowsProps;
 use crate::search::SearchProps;
 use crate::spinner::SpinnerProps;
@@ -53,5 +55,8 @@ fn main() -> Result<(), zgui::Error> {
         Scenario::Search { count, filter } => window
             .with_stylesheet(page::SHEET)
             .run(move || view! { Search(count = count, filter = filter) }),
+        Scenario::Dashboard { count } => window
+            .with_stylesheet(dashboard::SHEET)
+            .run(move || view! { Dashboard(count = count) }),
     }
 }

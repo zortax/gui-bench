@@ -2,8 +2,10 @@
 
 mod cell;
 mod compare;
+mod dashboard;
 mod explore;
 mod footprint;
+mod frames;
 mod input;
 mod kit;
 mod overview;
@@ -24,6 +26,8 @@ use leptos_router::hooks::use_params_map;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum View {
     Overview,
+    Dashboard,
+    Frames,
     Scaling,
     Table,
     Steady,
@@ -36,8 +40,10 @@ pub enum View {
 }
 
 impl View {
-    pub const ALL: [View; 10] = [
+    pub const ALL: [View; 12] = [
         View::Overview,
+        View::Dashboard,
+        View::Frames,
         View::Scaling,
         View::Table,
         View::Steady,
@@ -53,6 +59,8 @@ impl View {
     pub fn slug(self) -> &'static str {
         match self {
             View::Overview => "overview",
+            View::Dashboard => "dashboard",
+            View::Frames => "frames",
             View::Scaling => "scaling",
             View::Table => "table",
             View::Steady => "steady",
@@ -69,6 +77,8 @@ impl View {
     pub fn label(self) -> &'static str {
         match self {
             View::Overview => "Overview",
+            View::Dashboard => "Dashboard",
+            View::Frames => "Frame times",
             View::Scaling => "Rows & scroll",
             View::Table => "Table ops",
             View::Steady => "Ticker & spinner",
@@ -85,6 +95,12 @@ impl View {
     pub fn description(self) -> &'static str {
         match self {
             View::Overview => "The run at a glance: health and a scorecard of every framework",
+            View::Dashboard => {
+                "A realistic app: interactions, scroll, resize, startup and screenshots (dashboard)"
+            }
+            View::Frames => {
+                "Frame-time percentiles, late frames and stale refreshes of scroll, animation and resize"
+            }
             View::Scaling => "Hover latency, scroll and startup against row count (rows, virtual)",
             View::Table => {
                 "Keyed table operations: latency, CPU per operation, variant speedup, churn"
@@ -117,6 +133,8 @@ pub fn ViewHost() -> impl IntoView {
     });
     move || match view.get() {
         Some(View::Overview) => overview::OverviewView().into_any(),
+        Some(View::Dashboard) => dashboard::DashboardView().into_any(),
+        Some(View::Frames) => frames::FramesView().into_any(),
         Some(View::Scaling) => scaling::ScalingView().into_any(),
         Some(View::Table) => table::TableView().into_any(),
         Some(View::Steady) => steady::SteadyView().into_any(),

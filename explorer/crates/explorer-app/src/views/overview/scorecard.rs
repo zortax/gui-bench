@@ -102,6 +102,20 @@ const COLUMNS: &[Column] = &[
         updates: None,
     },
     Column {
+        title: "dashboard\nfilter 1k",
+        scenario: "dashboard",
+        metric: ("click-filter", "latency", "total_ms"),
+        rows: &[1000, 50],
+        updates: None,
+    },
+    Column {
+        title: "dashboard scroll\np99 frame 1k",
+        scenario: "dashboard",
+        metric: ("scroll", "frame_pacing", "interval_p99"),
+        rows: &[1000, 50],
+        updates: None,
+    },
+    Column {
         title: "idle CPU\n1k rows",
         scenario: "rows",
         metric: ("idle", "resources", "cpu_ms_per_s"),

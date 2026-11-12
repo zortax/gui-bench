@@ -101,17 +101,18 @@ fn compose(ctx: CardCtx, font: Option<(String, String)>) -> Option<(String, f64,
     let w = width + 32.0;
     let h = height + HEAD + FOOT;
     let style = match font {
-        Some((regular, bold)) => format!(
-            "<style>@font-face{{font-family:'Libertinus Sans';src:url(data:font/ttf;base64,{regular});font-weight:400}}@font-face{{font-family:'Libertinus Sans';src:url(data:font/ttf;base64,{bold});font-weight:700}}</style>"
+        Some((text, title)) => format!(
+            "<style>@font-face{{font-family:'Inter';src:url(data:font/woff2;base64,{text});font-weight:100 900}}@font-face{{font-family:'Libertinus Sans';src:url(data:font/ttf;base64,{title});font-weight:700}}</style>"
         ),
         None => String::new(),
     };
-    let family = "font-family:'Libertinus Sans',sans-serif";
+    let display = "font-family:'Libertinus Sans',sans-serif";
+    let family = "font-family:Inter,sans-serif";
     let out = format!(
         "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{w}\" height=\"{h}\" viewBox=\"0 0 {w} {h}\">{style}\
 <rect width=\"100%\" height=\"100%\" fill=\"{page}\"/>\
-<text x=\"16\" y=\"26\" style=\"{family};font-size:17px;font-weight:700;fill:{text}\">{}</text>\
-<text x=\"16\" y=\"45\" style=\"{family};font-size:11.5px;fill:{text2}\">{}</text>\
+<text x=\"16\" y=\"26\" style=\"{display};font-size:17px;font-weight:700;fill:{text}\">{}</text>\
+<text x=\"16\" y=\"45\" style=\"{family};font-size:11px;fill:{text2}\">{}</text>\
 {inner}\
 <text x=\"16\" y=\"{}\" style=\"{family};font-size:9.5px;fill:{muted}\">{}</text></svg>",
         escape(&ctx.title.get_value()),
@@ -177,9 +178,10 @@ async fn fetch_base64(url: &str) -> Option<String> {
     Some(base64(&js_sys::Uint8Array::new(&buffer).to_vec()))
 }
 
+/// Returns the text font and the title font as base64.
 async fn fonts() -> Option<(String, String)> {
     Some((
-        fetch_base64("/fonts/LibertinusSans-Regular.ttf").await?,
+        fetch_base64("/type/InterVariable-subset.woff2").await?,
         fetch_base64("/fonts/LibertinusSans-Bold.ttf").await?,
     ))
 }

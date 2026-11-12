@@ -2,6 +2,5 @@
 
 mod app;
 pub mod row;
-pub mod wheel;
 
 pub use app::run;

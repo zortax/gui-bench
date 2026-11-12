@@ -296,8 +296,8 @@ pub fn XyPlot(#[prop(into)] model: Signal<XyModel>) -> impl IntoView {
                     </defs>
                     {layers::axes(&sc, &m)}
                     <g clip-path=clip_url>
-                        {layers::rules(&sc, &m)}
                         {layers::bars(&sc, &m, hl)}
+                        {layers::rules(&sc, &m)}
                         {layers::series(&sc, &m, hl)}
                     </g>
                     {layers::pins(&sc, &m)}

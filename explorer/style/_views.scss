@@ -30,6 +30,12 @@
   margin-top: 3px;
 }
 
+.gx-prov__history {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
 .gx-table {
   width: 100%;
   border-collapse: collapse;
@@ -245,7 +251,7 @@
   background: var(--surface);
   summary {
     cursor: pointer;
-    font-weight: 700;
+    font-weight: var(--strong);
   }
   pre {
     max-height: 420px;
@@ -268,4 +274,32 @@
 
 .gx-explore__controls .gx-select__input {
   max-width: 340px;
+}
+
+.gx-shots {
+  display: grid;
+  gap: var(--gap);
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+}
+
+.gx-shot {
+  margin: 0;
+  padding: 8px;
+  background: var(--surface);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background var(--t);
+  &:hover {
+    background: var(--raised);
+  }
+  img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 3px;
+  }
+  figcaption {
+    margin-top: 5px;
+    font-size: var(--fs-s);
+  }
 }

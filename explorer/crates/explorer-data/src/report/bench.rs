@@ -1,6 +1,6 @@
 //! The fakeland bench report, reduced to what the run store keeps: the environment, the output,
-//! the validity, the metric summaries of every section and the pooled latency samples. Serde
-//! skips every other field.
+//! the validity, the metric summaries of every section, the pooled latency samples and the frame
+//! pacing of every iteration. Serde skips every other field.
 
 use explorer_core::api::{Better, CheckStatus, Stat};
 use serde::Deserialize;
@@ -84,6 +84,34 @@ pub struct Section {
     pub metrics: Vec<MetricRaw>,
     #[serde(default)]
     pub pooled: Vec<Pooled>,
+    #[serde(default)]
+    pub iterations: Vec<IterationRaw>,
+}
+
+/// One measured iteration of a section, reduced to the frame pacing fields.
+#[derive(Debug, Clone, Deserialize)]
+pub struct IterationRaw {
+    pub variant: Option<serde_json::Value>,
+    pub report: Option<PacingRaw>,
+}
+
+/// The frame pacing fields of an iteration report. Other sections leave them empty.
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+pub struct PacingRaw {
+    pub interval_ms: Option<QuantilesRaw>,
+    pub missed_vblanks: Option<f64>,
+    pub duration_ms: Option<f64>,
+    pub refresh_hz: Option<f64>,
+}
+
+/// The percentiles of a distribution summary.
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+pub struct QuantilesRaw {
+    pub p90: Option<f64>,
+    pub p95: Option<f64>,
+    pub p999: Option<f64>,
 }
 
 #[derive(Debug, Clone, Deserialize)]

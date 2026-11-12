@@ -4,17 +4,16 @@
 
 #[path = "../../shared/cli.rs"]
 mod cli;
+mod dashboard;
 mod font;
 mod page;
 mod rows;
-mod scroll;
 mod search;
 #[path = "../../shared/spec.rs"]
 mod spec;
 mod spinner;
 mod table;
 mod virtual_rows;
-mod wheel;
 mod window;
 
 use crate::cli::{Scenario, Variant};
@@ -31,5 +30,6 @@ fn main() -> eframe::Result {
         Scenario::Spinner { count } => spinner::run(title, count),
         Scenario::Search { count, filter } => search::run(title, count, filter),
         Scenario::Virtual { count } => virtual_rows::run(title, count),
+        Scenario::Dashboard { count } => dashboard::run(title, count),
     }
 }

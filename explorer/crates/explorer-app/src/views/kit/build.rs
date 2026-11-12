@@ -134,6 +134,19 @@ impl<'a> Build<'a> {
     /// Returns one series per framework and variant of a metric against the row count at a
     /// refresh rate, with direct end labels, plus ghost series of the compare run.
     pub fn rows_series(&self, scenario: &str, m: &MetricRef, hz: f64) -> Vec<Series> {
+        self.series_by(scenario, m, hz, |k| Some(f64::from(k.rows)), |_| 1.0)
+    }
+
+    /// Returns one series per framework and variant of a metric at a refresh rate, with the x of
+    /// a cell from `x_of` and its values times `per`, plus ghost series of the compare run.
+    pub fn series_by(
+        &self,
+        scenario: &str,
+        m: &MetricRef,
+        hz: f64,
+        x_of: impl Fn(&CellKey) -> Option<f64>,
+        per: impl Fn(&CellKey) -> f64,
+    ) -> Vec<Series> {
         let cells: Vec<&CellInfo> = self
             .cells(scenario)
             .into_iter()
@@ -172,18 +185,22 @@ impl<'a> Build<'a> {
                 .iter()
                 .filter(|c| c.key.framework == *fw && c.key.variant == *variant)
             {
-                let x = f64::from(c.key.rows);
+                let Some(x) = x_of(&c.key) else {
+                    continue;
+                };
+                let k = per(&c.key);
+                let times = |r: Option<(f64, f64)>| r.map(|(a, b)| (a * k, b * k));
                 if let Some(v) = self.value(m, c) {
-                    let mut p = Pt::new(x, v.y);
-                    p.band = v.spread.band;
-                    p.whisker = v.spread.whisker;
+                    let mut p = Pt::new(x, v.y * k);
+                    p.band = times(v.spread.band);
+                    p.whisker = times(v.spread.whisker);
                     p.cell = Some(c.id);
                     p.invalid = v.invalid;
                     p.tip = cell_tip(c, &v.stat, self.data.samples(m));
                     s.points.push(p);
                 }
                 if let Some(y) = self.ghost_value(m, c) {
-                    g.points.push(Pt::new(x, y));
+                    g.points.push(Pt::new(x, y * k));
                 }
             }
             s.points.sort_by(|a, b| a.x.total_cmp(&b.x));

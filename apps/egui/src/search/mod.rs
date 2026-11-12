@@ -2,10 +2,9 @@
 //! rows. With `filter`, every pass shows the rows whose label holds the text (immediate mode:
 //! the filter runs as the rows are laid out); without, all rows stay.
 
-use eframe::egui::{self, Context, RawInput, TextEdit, Ui};
+use eframe::egui::{self, TextEdit, Ui};
 
 use crate::page;
-use crate::scroll::Scroll;
 use crate::spec::{self, Ids, Row};
 use crate::window;
 
@@ -16,14 +15,13 @@ pub fn run(title: &str, count: usize, filter: bool) -> eframe::Result {
     })
 }
 
-/// The rows, the text of the input and the scroll state.
+/// The rows and the text of the input.
 struct Search {
     rows: Vec<Row>,
     filter: bool,
     query: String,
     /// Whether the input asked for the focus yet: it does so in the first pass.
     focused: bool,
-    scroll: Scroll,
 }
 
 impl Search {
@@ -33,16 +31,11 @@ impl Search {
             filter,
             query: String::new(),
             focused: false,
-            scroll: Scroll::default(),
         }
     }
 }
 
 impl eframe::App for Search {
-    fn raw_input_hook(&mut self, _: &Context, input: &mut RawInput) {
-        self.scroll.take(input);
-    }
-
     fn ui(&mut self, ui: &mut Ui, _: &mut eframe::Frame) {
         let status = spec::status(self.rows.len());
         page::header(ui, &status, |ui| {
@@ -57,7 +50,7 @@ impl eframe::App for Search {
             }
         });
         let (filter, query) = (self.filter, &self.query);
-        page::list(ui, &mut self.scroll, |ui| {
+        page::list(ui, |ui| {
             for row in &self.rows {
                 if !filter || spec::matches(&row.label, query) {
                     page::row(ui, row, false);

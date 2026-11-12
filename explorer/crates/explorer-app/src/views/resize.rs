@@ -1,13 +1,16 @@
 //! The resize view: a resize storm from 640×480 to 1200×800 in one second, and a scale switch
-//! from 1 to 2 and back: configure to present, frames at a stale size, and memory at scale 2.
+//! from 1 to 2 and back, of the plain list or the dashboard: frame times during the storm,
+//! configure to present, frames at a stale size, and memory at scale 2.
 
 use std::sync::Arc;
 
 use explorer_core::api::{MetricRef, RunOverview};
 use leptos::prelude::*;
 
-use crate::state::RunView;
-use crate::views::kit::{DotsCard, ScopePicker, ViewHead, WithData};
+use crate::state::{RunView, use_param};
+use crate::views::frames::{ProfileCard, SOURCES};
+use crate::views::kit::{ScopeBar, ScopeDotsCard, ViewHead, WithData, use_scope};
+use crate::widgets::Segmented;
 
 /// The panels: measurement, section, metric, title, axis words.
 const PANELS: [(&str, &str, &str, &str, &str); 9] = [
@@ -42,9 +45,9 @@ const PANELS: [(&str, &str, &str, &str, &str); 9] = [
     (
         "resize",
         "frame_pacing",
-        "fps",
-        "Frames during the storm",
-        "frames per second",
+        "interval_max",
+        "Longest frame gap during the storm",
+        "ms between two presents, worst",
     ),
     (
         "resize",
@@ -77,35 +80,54 @@ const PANELS: [(&str, &str, &str, &str, &str); 9] = [
 ];
 
 fn metrics() -> Vec<MetricRef> {
-    PANELS
+    let mut out: Vec<MetricRef> = PANELS
         .iter()
         .map(|(a, b, c, _, _)| MetricRef::new(a, b, c))
-        .collect()
+        .collect();
+    out.extend(crate::views::frames::metrics(&SOURCES[5]));
+    out
 }
 
 /// The resize view.
 #[component]
 pub fn ResizeView() -> impl IntoView {
+    let (scenario, set_scenario) = use_param("sc", "resize");
+    let options = vec![
+        ("resize".to_owned(), "plain list".to_owned()),
+        ("dashboard-resize".to_owned(), "dashboard".to_owned()),
+    ];
     view! {
         <div class="gx-view">
             <ViewHead
                 title="Resize"
-                text="The rows app under a resize storm and a scale switch. Configure to present is how long a new size takes to reach the screen."
-            />
-            <RunView view={move |o: Arc<RunOverview>| view! {
-                <WithData overview=o metrics=metrics() skeletons=4 view=move |data| {
-                    let size = RwSignal::new(String::new());
-                    let rate = RwSignal::new(String::new());
-                    let d = data.clone();
-                    view! {
-                        <ScopePicker data=data.clone() scenarios=vec!["resize"] size=size rate=rate/>
-                        <div class="gx-grid">
-                            {PANELS.iter().map(|(a, b, c, title, words)| view! {
-                                <DotsCard data=d.clone() title=*title words=*words metric=MetricRef::new(a, b, c) scenarios=vec![("resize", "resize")] size=size rate=rate/>
-                            }).collect_view()}
-                        </div>
-                    }
-                }/>
+                text="An app under a resize storm and a scale switch: the plain list, or the dashboard with its cards and chart. Configure to present is how long a new size takes to reach the screen."
+            >
+                <Segmented options=options value=Signal::derive(move || scenario.get()) on_change=set_scenario/>
+            </ViewHead>
+            <RunView view={move |o: Arc<RunOverview>| {
+                let scope = use_scope(o.clone(), Signal::derive(move || scenario.get()));
+                let source = Signal::derive(move || {
+                    let sc = scenario.get();
+                    SOURCES.iter().copied().find(|s| s.scenario == sc).unwrap_or(SOURCES[0])
+                });
+                view! {
+                    <div class="gx-view__controls"><ScopeBar scope=scope/></div>
+                    <WithData overview=o metrics=metrics() skeletons=4 view=move |data| {
+                        let d = data.clone();
+                        view! {
+                            <div class="gx-grid gx-grid--wide">
+                                {move || view! {
+                                    <ProfileCard data=d.clone() source=source.get() scope=scope per_refresh=Signal::stored(false) title="Frame times during the storm"/>
+                                }}
+                            </div>
+                            <div class="gx-grid">
+                                {PANELS.iter().map(|(a, b, c, title, words)| view! {
+                                    <ScopeDotsCard data=data.clone() title=*title words=*words metric=MetricRef::new(a, b, c) scenario=scenario scope=scope/>
+                                }).collect_view()}
+                            </div>
+                        }
+                    }/>
+                }
             }}/>
         </div>
     }

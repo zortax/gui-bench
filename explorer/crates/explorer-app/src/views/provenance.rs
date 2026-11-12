@@ -1,5 +1,5 @@
-//! The provenance of a run: revisions, host, output, effort, framework versions and the
-//! validity of its reports.
+//! The provenance of a run: revisions, host, output, effort, framework versions, the invocations
+//! that wrote it and the validity of its reports.
 
 use std::sync::Arc;
 
@@ -67,6 +67,23 @@ pub fn Provenance(overview: Arc<RunOverview>) -> impl IntoView {
                 <dd>{effort}</dd>
                 {p.scroll.map(|(v, s)| view! { <dt>"scroll"</dt><dd>{format!("{v} px/s for {s} s")}</dd> })}
                 {p.tick_ms.map(|t| view! { <dt>"ticker"</dt><dd>{format!("every {t} ms")}</dd> })}
+                {p.accessibility.map(|on| view! {
+                    <dt>"accessibility"</dt>
+                    <dd>{if on { "the sessions run an accessibility bus" } else { "off: no accessibility bus" }}</dd>
+                })}
+                {(p.history.len() > 1).then(|| view! {
+                    <dt>"history"</dt>
+                    <dd class="gx-prov__history">
+                        {p.history.iter().map(|h| view! {
+                            <span>
+                                {h.started_unix.map(|t| view! { <LocalTime unix=t/> })}
+                                " · " {h.scenarios.join(", ")}
+                                {h.revisions.iter().filter(|r| r.dirty).map(|r| view! { " " <Badge text=format!("{} dirty", r.name) tone="warn" title="The checkout had uncommitted changes"/> }).collect_view()}
+                                {h.accessibility.filter(|a| *a).map(|_| view! { " " <Badge text="a11y" tone="info" title="The sessions ran an accessibility bus"/> })}
+                            </span>
+                        }).collect_view()}
+                    </dd>
+                })}
                 <dt>"versions"</dt>
                 <dd>
                     {if p.versions.is_empty() {

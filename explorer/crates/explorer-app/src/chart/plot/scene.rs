@@ -213,8 +213,13 @@ pub fn layout(model: &XyModel, o: SceneOpts) -> Scene {
     let right = (o.width - o.label_room - 10.0).max(left + 40.0);
     let x = Scale::new(o.x_kind, x_dom, (left, right));
     let y = Scale::new(o.y_kind, y_dom, (bottom, top));
-    let x_ticks: Vec<(f64, String, bool)> = match &model.x.fixed {
-        Some(fixed) if o.view.x.is_none() => fixed
+    let x_ticks: Vec<(f64, String, bool)> = match (&model.x.categories, &model.x.fixed) {
+        (Some(cats), _) => cats
+            .iter()
+            .filter(|(v, _, _)| x.contains(*v))
+            .map(|(v, l, _)| (*v, l.clone(), true))
+            .collect(),
+        (None, Some(fixed)) if o.view.x.is_none() => fixed
             .iter()
             .filter(|v| x.contains(**v))
             .map(|v| (*v, thousands(*v), true))

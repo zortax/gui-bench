@@ -2,6 +2,7 @@
 //! gives the memory and VRAM footprint after startup.
 
 use crate::cell::CellRun;
+use crate::dashboard;
 use crate::layout::{Page, status_roi};
 use crate::steps;
 
@@ -50,7 +51,8 @@ pub fn run(kind: Kind, run: &mut CellRun) {
                 steps::measure(r, "typing", "typing", &steps::typing(r))
             });
         }
-        Kind::Resize => {
+        Kind::Dashboard => dashboard(run),
+        Kind::Resize | Kind::DashboardResize => {
             run.step("resize", |r| {
                 steps::measure(r, "resize", "resize-storm", &steps::resize_storm(r))
             });
@@ -111,4 +113,37 @@ fn table(run: &mut CellRun) {
     }
     let cycles = run.effort.churn_cycles;
     run.step("churn", |r| steps::churn(r, "F5", cycles));
+}
+
+/// The dashboard: hover a nav item and an order row, click the compare switch and the "Refunded"
+/// filter, and scroll the content over the orders.
+fn dashboard(run: &mut CellRun) {
+    run.step("hover-nav", |r| {
+        let params = steps::hover_at(r, &dashboard::hover_nav(), "pixels");
+        steps::measure(r, "hover-nav", "hover-latency", &params)
+    });
+    run.step("hover-row", |r| {
+        let params = steps::hover_at(r, &dashboard::hover_row(), "pixels");
+        steps::measure(r, "hover-row", "hover-latency", &params)
+    });
+    if run.fw.marks {
+        run.step("hover-row-marks", |r| {
+            let params = steps::hover_at(r, &dashboard::hover_row(), "app_mark");
+            steps::measure(r, "hover-row-marks", "hover-latency", &params)
+        });
+    }
+    run.step("click-compare", |r| {
+        let target = dashboard::click_compare();
+        let params = steps::click_at(r, target.at, target.roi);
+        steps::measure(r, "click-compare", "click-latency", &params)
+    });
+    run.step("click-filter", |r| {
+        let target = dashboard::click_filter();
+        let params = steps::click_at(r, target.at, target.roi);
+        steps::measure(r, "click-filter", "click-latency", &params)
+    });
+    run.step("scroll", |r| {
+        let params = steps::scroll_at(r, dashboard::SCROLL_POINTER, dashboard::scroll_roi());
+        steps::measure(r, "scroll", "scroll-glide", &params)
+    });
 }

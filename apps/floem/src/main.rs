@@ -4,6 +4,9 @@
 
 #[path = "../../shared/cli.rs"]
 mod cli;
+#[path = "../../shared/dashboard.rs"]
+mod dash;
+mod dashboard;
 mod page;
 mod rows;
 mod search;
@@ -55,5 +58,6 @@ fn content(scenario: Scenario) -> AnyView {
         } => table::fine::view(count, ticker, variant == Variant::Shared).into_any(),
         Scenario::Spinner { count } => spinner::view(count).into_any(),
         Scenario::Search { count, filter } => search::view(count, filter).into_any(),
+        Scenario::Dashboard { count } => dashboard::view(count).into_any(),
     }
 }

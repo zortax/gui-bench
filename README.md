@@ -25,6 +25,8 @@ its normal update path.
 | `search` | the same input, the rows filter on every key | key to filtered list (`z` hides all rows, BackSpace brings them back), typing latency | 1,000, 10,000; 60 Hz |
 | `virtual` | the rows of `rows` in the framework's virtualized list | startup, hover latency, scroll smoothness | 100,000, 1,000,000; 60, 144 Hz |
 | `resize` | the `rows` app | a resize storm (640x480 to 1200x800 in 1 s), a scale switch 1 to 2 to 1, memory at scale 2 | 100, 10,000; 60 Hz |
+| `dashboard` | an analytics dashboard (`apps/shared/dashboard.rs`): a dark sidebar with nav items, a top bar with a search input and buttons, four metric cards with sparklines, a bar chart with a segmented control, a filter card with checkboxes, a switch and buttons, and an orders table with avatars, status pills and progress bars; rounded cards with drop shadows; the content scrolls | hover latency of a nav item and of an order row, click latency of the compare switch (chart redraw) and of a status filter (table update), scroll smoothness over the orders | 50, 1,000 orders; 60, 144 Hz |
+| `dashboard-resize` | the dashboard | the measurements of `resize` | 50, 1,000 orders; 60 Hz |
 
 Every cell also measures:
 
@@ -152,10 +154,12 @@ every cell directory `<scenario>/<framework>/<variant>/<hz>hz/<size>/` holds
 `screenshot.png`, `startup.json` and one fakeland bench report per
 measurement (`idle.json`, `hover.json`, `scroll.json`, `op-<name>.json`,
 `churn.json`, `pacing.json`, `typing.json`, `filter.json`, `resize.json`,
-`scale.json`; zgui also `phases-<name>.json`). The size is the row count,
+`scale.json`, `hover-nav.json`, `hover-row.json`, `click-compare.json`,
+`click-filter.json`; zgui also `phases-<name>.json`). The size is the row count,
 with `-u<updates>` for the ticker. `results/latest` links to the newest run. `just run --resume --out results/<run>`
 continues a run: cells whose `cell.json` has no errors keep their results, the
-others run again.
+others run again. With `--scenarios`, it grows a run by scenarios: the cells of the
+other scenarios stay in `run.json`, and its `history` lists every invocation.
 
 ## Plots
 
@@ -174,7 +178,10 @@ every plot into `<run>/plots/<scenario>/` and a tidy `<run>/summary.csv`:
   damaged area, wakeups, per refresh rate.
 - `typing/`: typing latency with a static and a filtering list, and filter
   latency.
-- `resize/`: configure to present, frames at a stale size, memory at scale 2.
+- `resize/`, `dashboard-resize/`: configure to present, frames at a stale
+  size, memory at scale 2.
+- `dashboard/`: one figure per refresh rate: hover and click latencies, the
+  scroll glide, startup and the idle footprint, per table size.
 - `footprint/`: PSS and VRAM against rows with the slope per row, and the
   idle figure.
 - `efficiency.png`: CPU and GPU time per second of every scenario's steady
@@ -192,12 +199,16 @@ Each script also runs on its own: `python3 plots/table.py results/latest`.
   estimation reads the rows above the pointer, since the hovered row under
   the pointer does not move with the content. Lists shorter than a glide
   (10 rows) have no scroll results.
-- Every app moves its content 1:1 with the touchpad distance and applies it
-  at once. Where a framework scales or animates scroll input, the app
-  undoes it: GPUI multiplies touchpad distances by 3, freya by 2 and
-  animates them, and egui smooths larger deltas and drops the first delta of
-  a gesture. Wheel detents move 15 px at once in every app except vizia
-  (20 px); the matrix does not use the wheel.
+- Every app scrolls with its framework's scroll container as it ships: no
+  app rewrites scroll input, and each keeps the framework's own scale,
+  smoothing and momentum. Frameworks scale touchpad distances differently
+  (GPUI by 3, freya by 2 with an animation), so the scroll analyzer first
+  measures each app's content gain, the content pixels per scroll pixel,
+  from the middle of the glide. It searches each frame step near the input
+  step times that gain, and judges step errors and stalls against it. The
+  `tracking_ratio` metric reports the measured content distance over the
+  input distance, which is the gain. The smoothness score compares each
+  refresh's step with the next one, so it is the same at any gain.
 - Hover changes the row color at once, with no animation, in every app.
 - In `rows`, every row is a real element or widget, built up front. egui is immediate
   mode: it builds and lays out all rows every frame, each the usual way (a
@@ -212,6 +223,13 @@ Each script also runs on its own: `python3 plots/table.py results/latest`.
 - Without app marks, fakeland assigns each input to the next commit by time,
   so per-frame expected scroll steps jitter by an event for gpui-kit. The
   totals and the pixel-based measures are unaffected.
+- Sessions run no accessibility bus by default, as on a desktop without an
+  assistive technology: frameworks that publish an AccessKit tree keep it
+  dormant. `--a11y` runs the bus, so every app publishes its tree; that
+  costs some frameworks much more per frame than others (freya and egui
+  rebuild a tree of every row each frame), and the frameworks publish trees
+  of very different detail (zgui only its controls, freya every text).
+  `run.json` records the setting.
 - Times are compositor timestamps. A run is invalid when the compositor wakes
   late; each report carries its validity and the host environment.
 - The header scenarios have no hover color and no zebra stripes, so a click
@@ -235,8 +253,7 @@ Each script also runs on its own: `python3 plots/table.py results/latest`.
   CSS `@keyframes` animation. With vello-hybrid the animation does not start
   until an input asks for a redraw (blitz-shell paints the first frame without
   asking for the next one while animating); the layout check moves the
-  pointer, which starts it. Blitz moves 20 px per wheel line; the app scrolls
-  15 px. Dioxus has no virtualized list; `virtual` renders the visible range
+  pointer, which starts it. Dioxus has no virtualized list; `virtual` renders the visible range
   from `onscroll`. Keys come from dioxus-native's window event hook, since
   Blitz sends key events to the focused node only.
 - iced has no virtualized list; its `virtual` scenario builds the visible

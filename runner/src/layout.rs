@@ -21,13 +21,16 @@ pub const ROW_ODD: u32 = 0xf6f8fa;
 pub const ROW_BORDER: u32 = 0xe5e7eb;
 pub const HEADER_BG: u32 = 0xeef1f4;
 
-/// Where the rows start: at the top of the window, or under the header.
+/// The layout of a scenario: rows from the top of the window, rows under the header, or the
+/// dashboard.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Page {
     /// Rows from the top of the window, with stripes and a hover color.
     Rows,
     /// A header, then rows with one background and no hover color.
     Header,
+    /// The dashboard of `apps/shared/dashboard.rs`; see `crate::dashboard`.
+    Dashboard,
 }
 
 impl Page {
@@ -36,6 +39,16 @@ impl Page {
         match self {
             Self::Rows => 0,
             Self::Header => HEADER_HEIGHT,
+            Self::Dashboard => crate::dashboard::TABLE_ROWS_TOP,
+        }
+    }
+
+    /// Returns where the pointer rests while the layout check reads the window: the bottom of the
+    /// window, away from the rows it reads, or the empty part of the dashboard's top bar.
+    pub fn park(self) -> (i32, i32) {
+        match self {
+            Self::Rows | Self::Header => (OUTPUT.0 / 2, OUTPUT.1 - 8),
+            Self::Dashboard => crate::dashboard::PARK,
         }
     }
 
@@ -54,10 +67,13 @@ impl Page {
     /// fewer than two rows checks the header and the empty list only.
     pub fn checks(self, rows: u32) -> Vec<(i32, i32, u32)> {
         let x = OUTPUT.0 / 2;
+        if self == Self::Dashboard {
+            return crate::dashboard::CHECKS.to_vec();
+        }
         if rows < 2 {
             return match self {
                 Self::Rows => vec![(x, OUTPUT.1 - 16, ROW_EVEN)],
-                Self::Header => vec![
+                Self::Header | Self::Dashboard => vec![
                     (x, HEADER_HEIGHT / 2, HEADER_BG),
                     (x, OUTPUT.1 - 16, ROW_EVEN),
                 ],
@@ -69,7 +85,7 @@ impl Page {
                 (x, self.row_center(1), ROW_ODD),
                 (x, ROW_HEIGHT - 1, ROW_BORDER),
             ],
-            Self::Header => vec![
+            Self::Header | Self::Dashboard => vec![
                 (x, HEADER_HEIGHT / 2, HEADER_BG),
                 (x, self.row_center(0), ROW_EVEN),
                 (x, self.row_center(1), ROW_EVEN),

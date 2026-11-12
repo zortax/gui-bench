@@ -1,0 +1,584 @@
+/* The dashboard of apps/shared/dashboard.rs. Sizes are the spec's; boxes are border-box. */
+
+:root {
+    color-scheme: light;
+    background-color: #f3f4f6;
+    font-family: sans-serif;
+    font-size: 14px;
+    color: #111827;
+}
+
+.dash {
+    width: 100%;
+    height: 100%;
+    background-color: #f3f4f6;
+}
+
+/* ---- Sidebar ---- */
+
+.sidebar {
+    flex-shrink: 0;
+    width: 240px;
+    height: 100%;
+    background-color: #111827;
+}
+
+.brand {
+    flex-shrink: 0;
+    height: 64px;
+    padding-left: 20px;
+    gap: 12px;
+    align-items: center;
+}
+
+.logo {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background-color: #6366f1;
+}
+
+.brand__name {
+    font-size: 16px;
+    font-weight: 600;
+    color: #ffffff;
+}
+
+.nav {
+    flex-shrink: 0;
+    margin-top: 16px;
+    padding: 0 12px;
+    gap: 4px;
+}
+
+/* No transition: the hover color shows on the frame the pointer arrives. */
+.nav__item {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    height: 40px;
+    padding: 0 12px 0 16px;
+    border-radius: 8px;
+    color: #d1d5db;
+}
+
+.nav__item:hover {
+    background-color: #374151;
+}
+
+.nav__item.active {
+    background-color: #1f2937;
+}
+
+.nav__icon {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    background-color: #4b5563;
+}
+
+.nav__item.active .nav__icon {
+    background-color: #818cf8;
+}
+
+.badge {
+    margin-left: auto;
+    height: 20px;
+    padding: 0 7px;
+    border-radius: 10px;
+    align-items: center;
+    background-color: #ef4444;
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* The rule at y 720 and the avatar at y 740, held at the bottom. */
+.user {
+    flex-shrink: 0;
+    margin-top: auto;
+    height: 80px;
+    padding: 19px 20px 0;
+    gap: 12px;
+    border-top: 1px solid #1f2937;
+}
+
+.user__avatar,
+.topbar__avatar {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 16px;
+    align-items: center;
+    justify-content: center;
+    background-color: #f59e0b;
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.user__text {
+    height: 32px;
+    justify-content: center;
+}
+
+.user__name {
+    line-height: 18px;
+    color: #ffffff;
+}
+
+.user__role {
+    font-size: 12px;
+    line-height: 14px;
+    color: #9ca3af;
+}
+
+/* ---- Top bar ---- */
+
+.main {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+}
+
+/* The 1 px top padding balances the bottom border, so the controls center on y 32. */
+.topbar {
+    flex-shrink: 0;
+    height: 64px;
+    padding: 1px 24px 0;
+    align-items: center;
+    border-bottom: 1px solid #e5e7eb;
+    background-color: #ffffff;
+}
+
+.topbar__title {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.topbar .search {
+    flex-shrink: 0;
+    width: 280px;
+    height: 36px;
+    border-radius: 8px;
+    background-color: #f9fafb;
+}
+
+.topbar .export {
+    width: 96px;
+    height: 36px;
+    margin-left: 144px;
+    --zui-button-lift: 0 1px 3px rgba(17, 24, 39, 0.25);
+}
+
+.topbar__avatar {
+    margin-left: 24px;
+    width: 36px;
+    height: 36px;
+    border-radius: 18px;
+}
+
+/* ---- Content ---- */
+
+.content {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+}
+
+/* The scroll container keeps 15 px on its right for its classic scrollbar; the right padding
+   gives that much back, so the scrollbar sits inside the 24 px and the cards end at x 1256. */
+.content__body {
+    padding: 24px 9px 24px 24px;
+    gap: 16px;
+}
+
+.card {
+    flex-shrink: 0;
+    border-radius: 12px;
+    background-color: #ffffff;
+    box-shadow: 0 4px 12px rgba(17, 24, 39, 0.1);
+}
+
+.card__title {
+    font-size: 16px;
+    line-height: 24px;
+    font-weight: 600;
+}
+
+/* ---- Metric cards ---- */
+
+.kpis {
+    flex-shrink: 0;
+    gap: 16px;
+}
+
+.kpi {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    height: 112px;
+    padding: 18px 20px 0;
+}
+
+.kpi__label {
+    font-size: 13px;
+    line-height: 16px;
+    color: #6b7280;
+}
+
+.kpi__value {
+    margin-top: 6px;
+    font-size: 24px;
+    line-height: 32px;
+    font-weight: 700;
+}
+
+.delta {
+    align-self: flex-start;
+    margin-top: 6px;
+    height: 22px;
+    padding: 0 8px;
+    border-radius: 11px;
+    align-items: center;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.delta.up {
+    background-color: #dcfce7;
+    color: #166534;
+}
+
+.delta.down {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+
+/* Bottoms on card y 92, the right end 20 px inside. */
+.spark {
+    position: absolute;
+    right: 20px;
+    bottom: 20px;
+    gap: 3px;
+    align-items: flex-end;
+}
+
+.spark__bar {
+    flex-shrink: 0;
+    width: 6px;
+    border-radius: 2px;
+    background-color: #c7d2fe;
+}
+
+/* ---- Chart ---- */
+
+.row2 {
+    flex-shrink: 0;
+    height: 320px;
+    gap: 16px;
+}
+
+.chart {
+    flex: 1;
+    min-width: 0;
+    padding: 16px 20px 20px;
+}
+
+.chart__head {
+    flex-shrink: 0;
+    height: 32px;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* The segmented control is a zgui-ui ToggleGroup on a gray track. */
+.chart .segments {
+    padding: 2px;
+    border-radius: 8px;
+    background-color: #f3f4f6;
+}
+
+/* A group with no spacing joins its items into one strip: square inner corners and no shadow.
+   A segmented control keeps every segment rounded, so these few declarations override that seam. */
+.segments .segment {
+    width: 64px !important;
+    height: 28px;
+    padding: 0 !important;
+    border-width: 0;
+    border-radius: 6px !important;
+    background-color: transparent;
+    color: #6b7280;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.segments .segment:hover {
+    background-color: transparent;
+    color: #111827;
+}
+
+.segments .segment:checked {
+    background-color: #ffffff;
+    color: #111827;
+    box-shadow: 0 1px 3px rgba(17, 24, 39, 0.25) !important;
+}
+
+.plot {
+    position: relative;
+    flex-shrink: 0;
+    margin-top: 24px;
+    height: 228px;
+    overflow: hidden;
+}
+
+.grid {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background-color: #eef0f3;
+}
+
+.slot {
+    position: relative;
+    flex-shrink: 0;
+    width: 25px;
+    height: 100%;
+}
+
+.bar--current,
+.bar--previous {
+    position: absolute;
+    bottom: 0;
+    border-radius: 4px 4px 0 0;
+}
+
+.bar--current {
+    left: 4px;
+    width: 17px;
+    background-color: #6366f1;
+}
+
+.bar--previous {
+    display: none;
+    left: 3px;
+    width: 8px;
+    background-color: #c7d2fe;
+}
+
+.plot.comparing .bar--current {
+    left: 13px;
+    width: 8px;
+}
+
+.plot.comparing .bar--previous {
+    display: block;
+}
+
+/* ---- Filters ---- */
+
+.filters {
+    width: 336px;
+    padding: 20px;
+}
+
+.checks {
+    flex-shrink: 0;
+    margin-top: 12px;
+}
+
+.check {
+    height: 32px;
+    gap: 10px;
+    align-items: center;
+}
+
+.check .check__box {
+    width: 18px;
+    height: 18px;
+}
+
+.check .check__label,
+.compare .compare__label {
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 20px;
+}
+
+.compare {
+    flex-shrink: 0;
+    margin-top: 12px;
+    height: 28px;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* The switch is 40x22 with an 18 px knob 2 px inside; the border is what insets the knob. */
+.compare .switch {
+    width: 40px;
+    height: 22px;
+    border-width: 2px;
+    box-shadow: none;
+}
+
+.compare .switch > .zui-switch__thumb {
+    width: 18px;
+    height: 18px;
+    box-shadow: 0 1px 3px rgba(17, 24, 39, 0.25);
+}
+
+.compare .switch:checked > .zui-switch__thumb {
+    transform: translateX(18px);
+}
+
+.actions {
+    margin-top: auto;
+    gap: 12px;
+    justify-content: flex-end;
+}
+
+.actions .action {
+    width: 100px;
+    height: 36px;
+    padding: 0;
+}
+
+.actions .action.reset {
+    border-color: #d1d5db;
+    background-color: #ffffff;
+}
+
+.actions .apply {
+    --zui-button-lift: 0 1px 3px rgba(17, 24, 39, 0.25);
+}
+
+/* ---- Orders ---- */
+
+.orders {
+    overflow: hidden;
+}
+
+.orders__head {
+    flex-shrink: 0;
+    height: 44px;
+    padding: 0 24px;
+    align-items: center;
+    border-bottom: 1px solid #e5e7eb;
+    background-color: #f9fafb;
+    color: #6b7280;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* No transition: the hover color shows on the frame the pointer arrives. */
+.order {
+    flex-shrink: 0;
+    height: 52px;
+    padding: 0 24px;
+    align-items: center;
+    border-bottom: 1px solid #f3f4f6;
+    background-color: #ffffff;
+}
+
+.order:hover {
+    background-color: #eef2ff;
+}
+
+.col {
+    flex-shrink: 0;
+    align-items: center;
+}
+
+.col-order {
+    width: 116px;
+}
+
+.order .col-order {
+    color: #6b7280;
+}
+
+.col-customer {
+    width: 300px;
+    gap: 12px;
+}
+
+.col-status {
+    width: 160px;
+}
+
+.col-progress {
+    width: 120px;
+}
+
+.col-amount {
+    flex: 1;
+    flex-shrink: 1;
+    min-width: 0;
+    justify-content: flex-end;
+}
+
+.order .col-amount {
+    font-weight: 600;
+}
+
+.avatar {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 14px;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.pill {
+    height: 22px;
+    padding: 0 10px;
+    border-radius: 11px;
+    align-items: center;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.pill.paid {
+    background-color: #dcfce7;
+    color: #166534;
+}
+
+.pill.refunded {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+
+.pill.shipped {
+    background-color: #dbeafe;
+    color: #1e40af;
+}
+
+.pill.pending {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+
+.progress {
+    width: 120px;
+    height: 6px;
+    border-radius: 3px;
+    background-color: #e5e7eb;
+}
+
+.progress__fill {
+    height: 100%;
+    border-radius: 3px;
+    background-color: #4f46e5;
+}

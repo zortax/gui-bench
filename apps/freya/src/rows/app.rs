@@ -3,7 +3,6 @@
 use freya::prelude::*;
 
 use super::row::Row;
-use super::wheel::WheelScroll;
 
 const APP_ID: &str = "gui-bench.freya";
 const TITLE: &str = "gui-bench rows";
@@ -30,21 +29,17 @@ struct RowsApp {
 
 impl App for RowsApp {
     fn render(&self) -> impl IntoElement {
-        let wheel = WheelScroll::use_new();
         rect()
             .expanded()
             .background(BACKGROUND)
             .font_family(FONT_FAMILY)
             .font_size(FONT_SIZE)
             .child(
-                ScrollView::new_controlled(wheel.controller())
-                    .auto_hide_scrollbars(false)
-                    .child(
-                        rect()
-                            .width(Size::fill())
-                            .on_wheel(move |event| wheel.apply(event))
-                            .children((0..self.count).map(Row::new)),
-                    ),
+                ScrollView::new().child(
+                    rect()
+                        .width(Size::fill())
+                        .children((0..self.count).map(Row::new)),
+                ),
             )
     }
 }

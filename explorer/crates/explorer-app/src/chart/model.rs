@@ -96,6 +96,46 @@ impl Axis {
         }
     }
 
+    /// Returns an x axis of labeled steps at 0, 1, 2 … from the left, such as the sizes of a
+    /// scenario.
+    pub fn steps(label: impl Into<String>, labels: Vec<String>) -> Self {
+        let n = labels.len() as f64;
+        Self {
+            kind: ScaleKind::Linear,
+            label: label.into(),
+            unit: String::new(),
+            fixed: None,
+            zero: false,
+            domain: Some((-0.3, (n - 1.0).max(0.0) + 0.3)),
+            value: false,
+            categories: Some(
+                labels
+                    .into_iter()
+                    .enumerate()
+                    .map(|(i, l)| (i as f64, l, String::new()))
+                    .collect(),
+            ),
+        }
+    }
+
+    /// Returns the text of a value: its category label, or the number with the unit.
+    pub fn text(&self, v: f64) -> String {
+        if let Some((_, l, _)) = self
+            .categories
+            .iter()
+            .flatten()
+            .find(|(c, _, _)| (*c - v).abs() < 1e-9)
+        {
+            return l.clone();
+        }
+        let n = explorer_core::units::short(v);
+        if self.unit.is_empty() {
+            n
+        } else {
+            format!("{n} {}", self.unit)
+        }
+    }
+
     /// Marks the axis as the value axis.
     pub fn valued(mut self) -> Self {
         self.value = true;

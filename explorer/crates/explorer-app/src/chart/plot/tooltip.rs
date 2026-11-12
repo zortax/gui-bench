@@ -26,7 +26,7 @@ fn interval(name: &str, r: Option<(f64, f64)>, unit: &str) -> Option<(String, St
 
 fn point_lines(model: &XyModel, p: &Pt) -> Vec<(String, String)> {
     let mut lines = vec![
-        (model.x.label.clone(), with_unit(p.x, &model.x.unit)),
+        (model.x.label.clone(), model.x.text(p.x)),
         (model.y.label.clone(), with_unit(p.y, &model.y.unit)),
     ];
     lines.extend(interval("band", p.band, &model.y.unit));
@@ -67,7 +67,7 @@ pub fn body(model: &XyModel, scene: &Scene, hit: Hit) -> AnyView {
             .iter()
             .filter_map(|s| s.points.iter().find(|p| p.x == x).map(|p| (s, p)))
             .collect();
-        let x_text = with_unit(x, &model.x.unit);
+        let x_text = model.x.text(x);
         let unit = model.y.unit.clone();
         let _ = scene;
         return view! {

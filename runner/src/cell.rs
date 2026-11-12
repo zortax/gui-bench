@@ -92,6 +92,7 @@ pub fn run(
     binary: &Path,
     cell: Cell,
     effort: Effort,
+    a11y: bool,
     run_dir: &Path,
 ) -> CellOutcome {
     let dir = cell.dir();
@@ -109,7 +110,7 @@ pub fn run(
         outcome.errors.push(("setup".into(), e.to_string()));
         return outcome;
     }
-    let (session, app) = match start(fw, binary, &cell, &args, &out) {
+    let (session, app) = match start(fw, binary, &cell, &args, a11y, &out) {
         Ok(started) => started,
         Err(e) => {
             outcome.errors.push(("startup".into(), format!("{e:#}")));
@@ -151,11 +152,13 @@ fn start(
     binary: &Path,
     cell: &Cell,
     args: &[String],
+    a11y: bool,
     out: &Path,
 ) -> anyhow::Result<(Session, App)> {
     let session = Fakeland::builder()
         .output(OutputConfig::new("DP-1").mode(OUTPUT.0, OUTPUT.1, Hz(cell.hz)))
         .app_marks(fw.marks)
+        .accessibility(a11y)
         .sampling(SamplingConfig::every(SAMPLE_INTERVAL))
         .start()
         .context("start the session")?;
@@ -201,12 +204,11 @@ fn start(
 /// scenario fixes. A mismatch means the app draws another layout, and its probes would watch the
 /// wrong pixels.
 fn check_layout(run: &CellRun) -> anyhow::Result<()> {
-    // The pointer starts at the top left corner, over the first row. It moves to the bottom of
-    // the window, so the hover color stays away from the rows the check reads.
-    run.session.blocking_pointer_move(Position::output(
-        f64::from(OUTPUT.0 / 2),
-        f64::from(OUTPUT.1 - 8),
-    ))?;
+    // The pointer starts at the top left corner, over the first row. It moves where no hover
+    // color reaches the points the check reads.
+    let (x, y) = run.cell.kind.page().park();
+    run.session
+        .blocking_pointer_move(Position::output(f64::from(x), f64::from(y)))?;
     if run.cell.kind.animates() {
         std::thread::sleep(std::time::Duration::from_millis(300));
     } else {

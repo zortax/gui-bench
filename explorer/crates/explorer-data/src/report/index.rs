@@ -24,6 +24,22 @@ pub struct RunIndex {
     pub framework_versions: BTreeMap<String, VersionRaw>,
     #[serde(default)]
     pub cells: Vec<CellOutcome>,
+    pub accessibility: Option<bool>,
+    #[serde(default)]
+    pub history: Vec<InvocationRaw>,
+}
+
+/// One invocation of the runner in the history of a run.
+#[derive(Debug, Clone, Deserialize)]
+pub struct InvocationRaw {
+    pub started_unix: Option<u64>,
+    #[serde(default)]
+    pub scenarios: Vec<String>,
+    #[serde(default)]
+    pub frameworks: Vec<String>,
+    #[serde(default)]
+    pub revisions: BTreeMap<String, Option<String>>,
+    pub accessibility: Option<bool>,
 }
 
 #[derive(Debug, Clone, Deserialize)]

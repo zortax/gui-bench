@@ -1,6 +1,7 @@
 //! A dot plot: one row per framework and variant (or per metric, in the compare view), a dot for
-//! the value with a band and whiskers, alternating bands per group, value labels, and an x axis
-//! that zooms. Focus mode pins outlying rows to the right edge.
+//! the value with a band and whiskers, marked values such as percentiles, a hollow origin such as
+//! the value at a smaller size, alternating bands per group, value labels, and an x axis that
+//! zooms. Focus mode pins outlying rows to the right edge.
 
 use explorer_core::api::CellId;
 use explorer_core::scale::{Scale, ScaleKind, padded};
@@ -37,6 +38,11 @@ pub struct DotRow {
     pub invalid: bool,
     /// The value of the compare run.
     pub ghost: Option<f64>,
+    /// Where the value comes from, such as the value at a smaller size: a hollow marker with a
+    /// line to the value.
+    pub from: Option<f64>,
+    /// Marked values along the row, such as percentiles, with their names.
+    pub ticks: Vec<(f64, String)>,
     /// The row is a section heading.
     pub header: bool,
     pub tip: Vec<(String, String)>,
@@ -61,6 +67,8 @@ impl DotRow {
             cell: None,
             invalid: false,
             ghost: None,
+            from: None,
+            ticks: Vec::new(),
             header: false,
             tip: Vec::new(),
         }
@@ -106,9 +114,10 @@ fn geo(m: &DotModel, width: f64, kind: ScaleKind, focus: bool, zoom: Option<(f64
     let mut hi = f64::NEG_INFINITY;
     let mut peaks = Vec::new();
     for r in m.rows.iter().filter(|r| !r.header) {
-        for v in [r.value, r.ghost]
+        for v in [r.value, r.ghost, r.from]
             .into_iter()
             .flatten()
+            .chain(r.ticks.iter().map(|t| t.0))
             .chain(r.band.into_iter().flat_map(|(a, b)| [a, b]))
             .chain(r.whisker.into_iter().flat_map(|(a, b)| [a, b]))
         {
@@ -118,7 +127,7 @@ fn geo(m: &DotModel, width: f64, kind: ScaleKind, focus: bool, zoom: Option<(f64
             }
         }
         if let Some(v) = r.value {
-            peaks.push(v);
+            peaks.push(v.max(r.from.unwrap_or(v)));
         }
     }
     for rule in &m.rules {
@@ -393,6 +402,14 @@ pub fn DotPlot(#[prop(into)] model: Signal<DotModel>) -> impl IntoView {
                 let ghost = r.ghost.filter(|g| g.is_finite()).map(|gv| view! {
                     <path class="gx-marker gx-marker--ghost" d=r.marker.path(3.6) transform=format!("translate({:.1} {cy:.1})", clamp(gv)) style:stroke=r.color.clone()/>
                 });
+                let trail = r.from.filter(|v| v.is_finite()).map(|fv| view! {
+                    <line class="gx-trail" x1=f(clamp(fv)) x2=f(clamp(v)) y1=f(cy) y2=f(cy) style:stroke=r.color.clone()/>
+                    <path class="gx-marker gx-marker--from" d=r.marker.path(3.4) transform=format!("translate({:.1} {cy:.1})", clamp(fv)) style:stroke=r.color.clone()/>
+                });
+                let ticks = r.ticks.iter().filter(|t| t.0.is_finite() && t.0 <= top_value).map(|t| {
+                    let px = clamp(t.0);
+                    view! { <line class="gx-ptick" x1=f(px) x2=f(px) y1=f(cy - 5.0) y2=f(cy + 5.0) style:stroke=r.color.clone()/> }
+                }).collect_view();
                 let out = v > top_value && focused;
                 let px = clamp(v);
                 let hollow = r.hollow || r.invalid;
@@ -411,13 +428,19 @@ pub fn DotPlot(#[prop(into)] model: Signal<DotModel>) -> impl IntoView {
                     }.into_any()
                 };
                 let text = if r.text.is_empty() { short(v) } else { r.text.clone() };
-                let end = r.whisker.map_or(px, |(_, b)| clamp(b)).max(r.band.map_or(px, |(_, b)| clamp(b))).max(px);
+                let end = r.whisker.map_or(px, |(_, b)| clamp(b))
+                    .max(r.band.map_or(px, |(_, b)| clamp(b)))
+                    .max(r.ticks.iter().map(|t| clamp(t.0)).fold(px, f64::max))
+                    .max(r.from.map_or(px, clamp))
+                    .max(px);
                 let tx = if out { right + 10.0 } else { end + 6.0 };
                 view! {
                     <g class="gx-row" data-dim=dim>
                         {label}
                         {whisker}
                         {band}
+                        {trail}
+                        {ticks}
                         {ghost}
                         {mark}
                         <text class="gx-rowvalue" x=f(tx) y=f(cy) dominant-baseline="middle" style:fill=r.ink.clone()>{text}</text>
@@ -465,6 +488,7 @@ pub fn DotPlot(#[prop(into)] model: Signal<DotModel>) -> impl IntoView {
                         {r.whisker.map(|(a, b)| view! { <span>"whiskers"</span><b>{format!("{} – {}", short(a), fmt(b))}</b> })}
                     })}
                     {r.ghost.map(|v| view! { <span>"compare run"</span><b>{fmt(v)}</b> })}
+                    {r.ticks.iter().map(|(v, name)| view! { <span>{name.clone()}</span><b>{fmt(*v)}</b> }).collect_view()}
                     {r.tip.iter().map(|(k, v)| view! { <span>{k.clone()}</span><b>{v.clone()}</b> }).collect_view()}
                 </div>
                 {r.invalid.then(|| view! { <div class="gx-tip__warn">"the report fails a validity check"</div> })}

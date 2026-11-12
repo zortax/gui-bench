@@ -24,7 +24,9 @@ leptos_router = "=0.9.0-rc1"
 rayon = "1.12.0"
 send_wrapper = "0.6.0"
 serde = { version = "1.0.229", features = ["derive"] }
-serde_json = "1.0.154"
+# Exact float parsing: a value that crosses the wire as JSON equals the server value bit for
+# bit, so the browser hydrates the markup the server rendered.
+serde_json = { version = "1.0.154", features = ["float_roundtrip"] }
 thiserror = "2.0.21"
 tokio = { version = "1.54.1", features = ["rt-multi-thread", "macros"] }
 tower-http = { version = "0.7.1", features = ["compression-br", "compression-gzip", "set-header"] }

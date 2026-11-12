@@ -4,10 +4,9 @@
 
 use std::f64::consts::TAU;
 
-use eframe::egui::{self, Context, RawInput, Sense, Ui, epaint::RectShape, vec2};
+use eframe::egui::{self, Sense, Ui, epaint::RectShape, vec2};
 
 use crate::page::{self, color};
-use crate::scroll::Scroll;
 use crate::spec::{self, Ids, Row};
 use crate::window;
 
@@ -16,17 +15,15 @@ pub fn run(title: &str, count: usize) -> eframe::Result {
     window::run(title, page::setup, move || Box::new(Spinner::new(count)))
 }
 
-/// The static rows and the scroll state.
+/// The static rows.
 struct Spinner {
     rows: Vec<Row>,
-    scroll: Scroll,
 }
 
 impl Spinner {
     fn new(count: usize) -> Self {
         Self {
             rows: Ids::default().rows(count),
-            scroll: Scroll::default(),
         }
     }
 }
@@ -46,13 +43,9 @@ fn spinner(ui: &mut Ui) {
 }
 
 impl eframe::App for Spinner {
-    fn raw_input_hook(&mut self, _: &Context, input: &mut RawInput) {
-        self.scroll.take(input);
-    }
-
     fn ui(&mut self, ui: &mut Ui, _: &mut eframe::Frame) {
         page::header(ui, &spec::status(self.rows.len()), spinner);
-        page::list(ui, &mut self.scroll, |ui| {
+        page::list(ui, |ui| {
             for row in &self.rows {
                 page::row(ui, row, false);
             }

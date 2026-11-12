@@ -2,7 +2,6 @@
 
 mod list;
 mod row;
-pub mod wheel;
 
 pub use list::Rows;
 pub use row::Row;

@@ -1,12 +1,11 @@
 //! The rows window: a borderless eframe window in the light theme with one vertical scroll area
-//! that lays out all N rows every frame and scrolls 1:1 with the input.
+//! that lays out all N rows every frame.
 
 use eframe::egui::{
-    self, Context, RawInput, Stroke, TextStyle, Theme, Ui, style::ScrollStyle, vec2,
+    self, Context, ScrollArea, Stroke, TextStyle, Theme, Ui, style::ScrollStyle, vec2,
 };
 
 use super::row;
-use crate::scroll::Scroll;
 use crate::{font, spec, window};
 
 const BACKGROUND: egui::Color32 = egui::Color32::WHITE;
@@ -32,33 +31,24 @@ pub fn setup(ctx: &Context) {
     });
 }
 
-/// The rows view and its scroll state.
+/// The rows view.
 struct Rows {
     count: usize,
-    scroll: Scroll,
 }
 
 impl Rows {
     fn new(count: usize) -> Self {
-        Self {
-            count,
-            scroll: Scroll::default(),
-        }
+        Self { count }
     }
 }
 
 impl eframe::App for Rows {
-    fn raw_input_hook(&mut self, _: &Context, input: &mut RawInput) {
-        self.scroll.take(input);
-    }
-
     fn ui(&mut self, ui: &mut Ui, _: &mut eframe::Frame) {
-        let output = self.scroll.area().show(ui, |ui| {
+        ScrollArea::vertical().auto_shrink(false).show(ui, |ui| {
             for i in 0..self.count {
                 row::row(ui, i);
             }
         });
-        self.scroll.end(&output);
     }
 
     fn clear_color(&self, _: &egui::Visuals) -> [f32; 4] {

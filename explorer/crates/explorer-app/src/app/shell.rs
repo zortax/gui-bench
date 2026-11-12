@@ -22,7 +22,8 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
                 <meta name="viewport" content="width=device-width, initial-scale=1"/>
                 <meta name="color-scheme" content="light dark"/>
                 <script>{THEME_SCRIPT}</script>
-                <link rel="preload" href="/fonts/LibertinusSans-Regular.ttf" r#as="font" crossorigin=""/>
+                <link rel="preload" href="/type/InterVariable-subset.woff2" r#as="font" r#type="font/woff2" crossorigin=""/>
+                <link rel="preload" href="/fonts/LibertinusSans-Bold.ttf" r#as="font" crossorigin=""/>
                 <link rel="icon" href="/favicon.svg" type="image/svg+xml"/>
                 <AutoReload options=options.clone()/>
                 <HydrationScripts options/>

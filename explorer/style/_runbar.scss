@@ -13,7 +13,7 @@
   background: var(--surface);
   box-shadow: 0 0 0 1px var(--float-border);
   color: var(--text);
-  font-weight: 700;
+  font-weight: var(--strong);
   &:hover {
     background: var(--raised);
   }
@@ -81,7 +81,7 @@
 }
 
 .gx-runrow__name {
-  font-weight: 700;
+  font-weight: var(--strong);
   color: var(--text);
 }
 

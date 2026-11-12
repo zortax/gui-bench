@@ -30,11 +30,17 @@ pub enum Kind {
     Virtual,
     /// The rows app under a resize storm and a scale switch.
     Resize,
+    /// The analytics dashboard: hover a nav item and an order row, click the compare switch and a
+    /// status filter, scroll the content.
+    Dashboard,
+    /// The dashboard under a resize storm and a scale switch.
+    #[serde(rename = "dashboard-resize")]
+    DashboardResize,
 }
 
 impl Kind {
     /// Every scenario in run order.
-    pub const ALL: [Kind; 8] = [
+    pub const ALL: [Kind; 10] = [
         Kind::Rows,
         Kind::Table,
         Kind::Ticker,
@@ -43,6 +49,8 @@ impl Kind {
         Kind::Search,
         Kind::Virtual,
         Kind::Resize,
+        Kind::Dashboard,
+        Kind::DashboardResize,
     ];
 
     /// Returns the name in results and on the command line.
@@ -56,6 +64,8 @@ impl Kind {
             Kind::Search => "search",
             Kind::Virtual => "virtual",
             Kind::Resize => "resize",
+            Kind::Dashboard => "dashboard",
+            Kind::DashboardResize => "dashboard-resize",
         }
     }
 
@@ -68,6 +78,7 @@ impl Kind {
     fn app_scenario(self) -> &'static str {
         match self {
             Kind::Resize => "rows",
+            Kind::DashboardResize => "dashboard",
             other => other.name(),
         }
     }
@@ -76,6 +87,7 @@ impl Kind {
     pub fn page(self) -> Page {
         match self {
             Kind::Rows | Kind::Virtual | Kind::Resize => Page::Rows,
+            Kind::Dashboard | Kind::DashboardResize => Page::Dashboard,
             _ => Page::Header,
         }
     }
@@ -89,8 +101,12 @@ impl Kind {
     pub fn rates(self, quick: bool) -> Vec<f64> {
         match self {
             _ if quick => vec![60.0],
-            Kind::Rows | Kind::Ticker | Kind::Spinner | Kind::Virtual => vec![60.0, 144.0],
-            Kind::Table | Kind::Typing | Kind::Search | Kind::Resize => vec![60.0],
+            Kind::Rows | Kind::Ticker | Kind::Spinner | Kind::Virtual | Kind::Dashboard => {
+                vec![60.0, 144.0]
+            }
+            Kind::Table | Kind::Typing | Kind::Search | Kind::Resize | Kind::DashboardResize => {
+                vec![60.0]
+            }
         }
     }
 
@@ -106,6 +122,8 @@ impl Kind {
             (Kind::Virtual, true) => vec![100_000],
             (Kind::Resize, false) => vec![100, 10000],
             (Kind::Resize, true) => vec![1000],
+            (Kind::Dashboard | Kind::DashboardResize, false) => vec![50, 1000],
+            (Kind::Dashboard | Kind::DashboardResize, true) => vec![50],
         }
     }
 

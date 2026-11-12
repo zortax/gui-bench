@@ -2,6 +2,7 @@
 
 #[path = "../../shared/cli.rs"]
 mod cli;
+mod dashboard;
 mod page;
 mod rows;
 mod search;
@@ -14,6 +15,7 @@ mod virtual_rows;
 use gpui_kit::*;
 
 use crate::cli::{Scenario, Variant};
+use crate::dashboard::Dashboard;
 use crate::rows::Rows;
 use crate::search::Search;
 use crate::spinner::Spinner;
@@ -28,7 +30,9 @@ fn main() {
     // `apps/gpui-kit-fast` builds the same sources with the `gpui-fast` feature.
     eprintln!("{NAME}: gpui-fast {}", gpui_kit::GPUI_FAST);
 
-    gpui_kit::application().run(move |cx| {
+    // The kit's component icons, such as the check mark of the checkbox.
+    let app = gpui_kit::application().with_assets(gpui_kit::assets::Assets);
+    app.run(move |cx| {
         gpui_kit::init(cx);
         table::keys::bind(cx);
         let options = WindowOptions {
@@ -72,6 +76,10 @@ fn main() {
                 })
                 .map(drop)
             }
+            Scenario::Dashboard { count } => gpui_kit::open_window(options, cx, |window, cx| {
+                cx.new(|cx| Dashboard::new(count, window, cx))
+            })
+            .map(drop),
         };
         opened.expect("failed to open window");
         cx.activate(true);

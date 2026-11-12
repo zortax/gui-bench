@@ -14,7 +14,8 @@ PANELS = [
     ("scroll_smoothness", "smoothness_score", "Smoothness", "score, 0 to 100 · higher is better"),
     ("frame_pacing", "fps", "Delivered frame rate", "frames per second"),
     ("scroll_smoothness", "missed_vblanks", "Missed refreshes", "per 1 s glide · lower is better"),
-    ("scroll_smoothness", "tracking_ratio", "Tracking", "content distance / input distance"),
+    ("scroll_smoothness", "tracking_ratio", "Content gain",
+     "content distance / input distance · 1 = one to one"),
 ]
 
 

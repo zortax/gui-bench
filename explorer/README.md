@@ -17,13 +17,23 @@ as unsupported.
 
 - **Overview**: provenance, report health, and a scorecard of every framework over the key
   metric of each scenario (ratio to the best, geometric mean).
-- **Rows & scroll**, **Table ops**, **Ticker & spinner**, **Typing & search**, **Resize**,
-  **Memory & idle**: the scenarios, with any metric against rows, per-operation dot plots,
-  variant speedups with bootstrap CIs, churn, the efficiency matrix, memory per row.
+- **Dashboard**: the realistic app. Every interaction at both table sizes in one grid colored by
+  refreshes, each interaction from 50 to 1,000 orders, the stages of one interaction (app, GPU,
+  wait for the refresh, scanout), CPU per frame, the scroll glide frame by frame, resize, startup,
+  footprint, and the screenshots side by side.
+- **Frame times**: frame interval percentiles (p50, p99, longest gap) and stale refreshes against
+  size, in ms or in refreshes; the frame-time profile of one size; every late frame of every
+  iteration on its time axis; and the share of frame time per class of lateness. For scroll
+  glides, ticker, spinner and both resize storms.
+- **Rows & scroll**, **Table ops**, **Ticker & spinner**, **Typing & search**, **Resize** (plain
+  list or dashboard), **Memory & idle**: the scenarios, with any metric against rows,
+  per-operation dot plots, variant speedups with bootstrap CIs, churn, the efficiency matrix,
+  memory per row, and frame times in place of frame rates.
 - **Compare**: one framework (or variant) against another, or the run against another run, as a
   forest plot of ratios with 95% bootstrap intervals.
 - **Explore**: any metric of a scenario against any other.
-- **Runs**: every run, and the differences of two runs.
+- **Runs**: every run with its provenance (accessibility bus, the invocations that wrote it), and
+  the differences of two runs.
 - **Cell drawer** (click any point): screenshot, startup, validity checks, iterations, every
   latency repeat, stages, frame timelines, per-key typing, per-configure resize, zgui phases,
   app log.

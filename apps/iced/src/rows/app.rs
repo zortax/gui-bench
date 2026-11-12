@@ -6,7 +6,6 @@ use iced::widget::{Column, scrollable};
 use iced::{Element, Length, Size, Theme, theme, window};
 
 use super::row::{self, Message};
-use super::wheel::Wheel;
 
 const TITLE: &str = "gui-bench rows";
 const WIDTH: f32 = 1280.0;
@@ -58,9 +57,9 @@ pub fn scrollbar() -> Scrollbar {
 
 fn view(rows: &Rows) -> Element<'_, Message> {
     let list = Column::with_children((0..rows.count).map(row::row)).width(Length::Fill);
-    let scroll = scrollable(list)
+    scrollable(list)
         .direction(Direction::Vertical(scrollbar()))
         .width(Length::Fill)
-        .height(Length::Fill);
-    Wheel::new(scroll).into()
+        .height(Length::Fill)
+        .into()
 }

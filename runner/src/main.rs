@@ -1,10 +1,13 @@
 //! Runs the GUI benchmark matrix under fakeland. For every scenario, framework, variant, refresh
 //! rate and size, the runner starts a headless session, launches the framework's app and runs the
 //! scenario's measurements. Results go to `results/<run>/<scenario>/<framework>/<variant>/<hz>hz/<size>/`
-//! as JSON, with `run.json` as the index; `results/latest` links to the newest run.
+//! as JSON, with `run.json` as the index; `results/latest` links to the newest run. `--resume`
+//! continues a run, or grows it by scenarios: cells outside the new matrix stay in the index.
 
 mod cell;
+mod dashboard;
 mod frameworks;
+mod index;
 mod layout;
 mod limits;
 mod phases;
@@ -12,28 +15,24 @@ mod scenarios;
 mod steps;
 
 use std::path::{Path, PathBuf};
-use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, bail};
 use clap::Parser;
-use serde_json::json;
 
 use crate::frameworks::Framework;
+use crate::index::{Index, Invocation};
 use crate::scenarios::{Cell, Effort, Kind};
-
-/// The format of `run.json` and the run directory.
-const FORMAT: u32 = 2;
 
 /// Runs the GUI benchmark matrix under fakeland.
 #[derive(Debug, Parser)]
 struct Args {
     /// The scenarios, comma separated: rows, table, ticker, spinner, typing, search, virtual,
-    /// resize.
+    /// resize, dashboard, dashboard-resize.
     #[arg(
         long,
         value_delimiter = ',',
-        default_value = "rows,table,ticker,spinner,typing,search,virtual,resize"
+        default_value = "rows,table,ticker,spinner,typing,search,virtual,resize,dashboard,dashboard-resize"
     )]
     scenarios: Vec<String>,
     /// The frameworks, comma separated.
@@ -69,9 +68,14 @@ struct Args {
     #[arg(long)]
     quick: bool,
     /// Continue a run in `--out`: cells whose `cell.json` has no errors keep their results, the
-    /// other cells run again.
+    /// other cells run again. Cells of the earlier `run.json` outside the selected matrix stay in
+    /// the index, so a run can grow by scenarios.
     #[arg(long, requires = "out")]
     resume: bool,
+    /// Run an accessibility bus in every session, so apps publish their accessibility trees as
+    /// they do while an assistive technology runs. Off by default, as on a desktop without one.
+    #[arg(long)]
+    a11y: bool,
     /// The run directory. The default is `results/run-<unix time>`.
     #[arg(long)]
     out: Option<PathBuf>,
@@ -116,6 +120,15 @@ fn main() -> anyhow::Result<()> {
     link_latest(&root, &run_dir);
 
     let total = cells.len();
+    let dirs = cells.iter().map(|(_, _, cell)| cell.dir()).collect();
+    let invocation = Invocation {
+        scenarios: &args.scenarios,
+        frameworks: &args.frameworks,
+        effort,
+        started_unix: stamp,
+        a11y: args.a11y,
+    };
+    let run_index = Index::new(&run_dir, &invocation, args.resume, &dirs);
     let mut outcomes = Vec::new();
     for (index, (fw, binary, cell)) in cells.into_iter().enumerate() {
         let dir = run_dir.join(cell.dir());
@@ -128,11 +141,11 @@ fn main() -> anyhow::Result<()> {
             let _ = std::fs::remove_dir_all(&dir);
         }
         eprintln!("[{}/{total}] {}", index + 1, cell.dir());
-        let outcome = cell::run(fw, binary, cell, effort, &run_dir);
+        let outcome = cell::run(fw, binary, cell, effort, args.a11y, &run_dir);
         outcomes.push(serde_json::to_value(outcome)?);
-        write_index(&run_dir, &args, effort, stamp, &outcomes)?;
+        run_index.write(&outcomes)?;
     }
-    write_index(&run_dir, &args, effort, stamp, &outcomes)?;
+    run_index.write(&outcomes)?;
     let failed: usize = outcomes
         .iter()
         .filter_map(|c| c["errors"].as_array().map(Vec::len))
@@ -195,59 +208,6 @@ fn finished(dir: &Path) -> Option<serde_json::Value> {
     let outcome: serde_json::Value = serde_json::from_str(&text).ok()?;
     let clean = outcome["errors"].as_array().is_some_and(Vec::is_empty);
     clean.then_some(outcome)
-}
-
-fn write_index(
-    run_dir: &Path,
-    args: &Args,
-    effort: Effort,
-    stamp: u64,
-    cells: &[serde_json::Value],
-) -> anyhow::Result<()> {
-    let root = frameworks::root();
-    let index = json!({
-        "format": FORMAT,
-        "started_unix": stamp,
-        "scenarios": args.scenarios,
-        "frameworks": args.frameworks,
-        "effort": effort,
-        "output": { "width": layout::OUTPUT.0, "height": layout::OUTPUT.1 },
-        "row_height": layout::ROW_HEIGHT,
-        "header_height": layout::HEADER_HEIGHT,
-        "scroll": { "velocity": steps::SCROLL_VELOCITY, "seconds": steps::SCROLL_SECONDS },
-        "tick_ms": scenarios::TICK_MS,
-        "revisions": {
-            "gui-bench": revision(&root),
-            "fakeland": revision(&root.join("../fakeland")),
-            "zgui": revision(&root.join("../zgui-fakeland-marks")),
-        },
-        "cells": cells,
-    });
-    cell::save(&run_dir.join("run.json"), &index)
-}
-
-/// Returns the short commit of a checkout, with `+dirty` when it has changes.
-fn revision(path: &Path) -> Option<String> {
-    let git = |args: &[&str]| {
-        // `--no-optional-locks`: a status refresh takes no `index.lock`, so a commit that runs
-        // while the matrix runs never meets a held lock.
-        Command::new("git")
-            .arg("--no-optional-locks")
-            .arg("-C")
-            .arg(path)
-            .args(args)
-            .output()
-            .ok()
-            .filter(|o| o.status.success())
-            .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_owned())
-    };
-    let commit = git(&["rev-parse", "--short", "HEAD"])?;
-    let dirty = git(&["status", "--porcelain"]).is_some_and(|s| !s.is_empty());
-    Some(if dirty {
-        format!("{commit}+dirty")
-    } else {
-        commit
-    })
 }
 
 /// Points `results/latest` at the run directory.

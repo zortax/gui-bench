@@ -69,6 +69,7 @@ async fn main() -> anyhow::Result<()> {
     let app = Router::new()
         .route("/files/{run}/{cell}/{file}", get(files::serve))
         .nest_service("/fonts", ServeDir::new(fonts))
+        .nest_service("/type", ServeDir::new(site.join("type")))
         .nest_service(&format!("/{}", options.site_pkg_dir), ServeDir::new(pkg))
         .route_service("/favicon.svg", ServeFile::new(site.join("favicon.svg")))
         .leptos_routes_with_context(

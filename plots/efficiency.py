@@ -23,6 +23,9 @@ COLUMNS = [
     ("spinner\n10k rows", "spinner", "pacing", {"rows": 10000}),
     ("typing\n1k rows", "typing", "typing", {"rows": 1000}),
     ("scroll\n1M virtual", "virtual", "scroll", {"rows": 1_000_000}),
+    ("dashboard\nidle", "dashboard", "idle", {"rows": 50}),
+    ("dashboard\nhover row", "dashboard", "hover-row", {"rows": 50}),
+    ("dashboard\nscroll 1k orders", "dashboard", "scroll", {"rows": 1000}),
 ]
 PANELS = [
     (lambda r: c.resource(r, "cpu_ms_per_s"), "App CPU time", "CPU ms per second, median iteration"),

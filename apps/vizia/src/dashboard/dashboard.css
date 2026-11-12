@@ -1,0 +1,593 @@
+/* The dashboard. The theme variables give the built-in controls (buttons, textbox, checkboxes,
+   switch) the colors of the spec; the rules below size and place every part. vizia has no
+   per-side borders, so a 1 px bottom or top rule is the edge of a background gradient. */
+
+:root {
+    font-family: sans-serif;
+    font-size: 14px;
+    color: #111827;
+
+    --background: #ffffff;
+    --foreground: #111827;
+    --primary: #4f46e5;
+    --primary-hover: #4338ca;
+    --primary-active: #3730a3;
+    --primary-foreground: #ffffff;
+    --muted-foreground: #6b7280;
+    --border: #d1d5db;
+    --input: #d1d5db;
+}
+
+window {
+    background-color: #f3f4f6;
+}
+
+.dashboard {
+    width: 1s;
+    height: 1s;
+}
+
+/* SIDEBAR */
+
+.sidebar {
+    width: 240px;
+    height: 1s;
+    background-color: #111827;
+}
+
+.brand {
+    height: 64px;
+    padding-left: 20px;
+    alignment: left;
+    gap: 12px;
+}
+
+.logo {
+    size: 28px;
+    corner-radius: 8px;
+    background-color: #6366f1;
+}
+
+.app-name {
+    font-size: 16px;
+    font-weight: semi-bold;
+    color: #ffffff;
+}
+
+.nav {
+    height: 1s;
+    padding-top: 16px;
+    padding-left: 12px;
+    padding-right: 12px;
+    gap: 4px;
+}
+
+.nav-item {
+    height: 40px;
+    padding-left: 16px;
+    padding-right: 12px;
+    alignment: left;
+    gap: 12px;
+    corner-radius: 8px;
+    color: #d1d5db;
+}
+
+.nav-item:hover {
+    background-color: #374151;
+}
+
+.nav-item.active {
+    background-color: #1f2937;
+    color: #ffffff;
+}
+
+.nav-icon {
+    size: 16px;
+    corner-radius: 4px;
+    background-color: #4b5563;
+}
+
+.nav-item.active .nav-icon {
+    background-color: #818cf8;
+}
+
+.nav-label {
+    width: 1s;
+}
+
+.nav-badge {
+    height: 20px;
+    padding-left: 7px;
+    padding-right: 7px;
+    alignment: center;
+    corner-radius: 10px;
+    background-color: #ef4444;
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: semi-bold;
+}
+
+.user {
+    height: 80px;
+    padding-top: 20px;
+    padding-left: 20px;
+    gap: 12px;
+    background-image: linear-gradient(to bottom, #1f2937 1px, transparent 1px);
+}
+
+.user-avatar {
+    size: 32px;
+    alignment: center;
+    corner-radius: 50%;
+    background-color: #f59e0b;
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: semi-bold;
+}
+
+.user-text {
+    size: auto;
+    gap: 2px;
+}
+
+.user-name {
+    color: #ffffff;
+}
+
+.user-role {
+    font-size: 12px;
+    color: #9ca3af;
+}
+
+/* TOP BAR */
+
+.main {
+    width: 1s;
+    height: 1s;
+}
+
+.topbar {
+    height: 64px;
+    padding-left: 24px;
+    padding-right: 24px;
+    alignment: left;
+    background-color: #ffffff;
+    background-image: linear-gradient(to bottom, transparent 63px, #e5e7eb 63px);
+}
+
+.page-title {
+    width: 1s;
+    font-size: 20px;
+    font-weight: semi-bold;
+}
+
+textbox.search {
+    width: 280px;
+    height: 36px;
+    padding-left: 12px;
+    padding-right: 12px;
+    corner-radius: 8px;
+    background-color: #f9fafb;
+}
+
+button {
+    height: 36px;
+    corner-radius: 8px;
+    font-weight: semi-bold;
+}
+
+button.primary {
+    shadow: 0px 1px 3px #11182740;
+}
+
+.topbar-tools {
+    size: auto;
+    alignment: left;
+    gap: 144px;
+}
+
+.topbar-actions {
+    size: auto;
+    alignment: left;
+    gap: 24px;
+}
+
+button.export {
+    width: 96px;
+}
+
+.topbar-avatar {
+    size: 36px;
+    alignment: center;
+    corner-radius: 50%;
+    background-color: #f59e0b;
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: semi-bold;
+}
+
+/* CONTENT */
+
+.content {
+    width: 1s;
+    height: 1s;
+    background-color: #f3f4f6;
+}
+
+.blocks {
+    width: 1s;
+    height: auto;
+    padding: 24px;
+    gap: 16px;
+}
+
+.card {
+    corner-radius: 12px;
+    background-color: #ffffff;
+    shadow: 0px 4px 12px #1118271a;
+}
+
+.card-title {
+    font-size: 16px;
+    font-weight: semi-bold;
+}
+
+/* METRIC CARDS */
+
+.kpis {
+    height: 112px;
+    gap: 16px;
+}
+
+.kpi {
+    width: 1s;
+    height: 1s;
+    padding-left: 20px;
+    padding-top: 18px;
+}
+
+.kpi-label {
+    height: 22px;
+    font-size: 13px;
+    color: #6b7280;
+}
+
+.kpi-value {
+    height: 38px;
+    font-size: 24px;
+    font-weight: bold;
+}
+
+.delta {
+    height: 22px;
+    padding-left: 8px;
+    padding-right: 8px;
+    alignment: center;
+    corner-radius: 11px;
+    font-size: 12px;
+    font-weight: semi-bold;
+}
+
+.delta.up {
+    background-color: #dcfce7;
+    color: #166534;
+}
+
+.delta.down {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+
+.spark {
+    position-type: absolute;
+    left: 1s;
+    right: 20px;
+    top: 1s;
+    bottom: 20px;
+    size: auto;
+    gap: 3px;
+    alignment: bottom-left;
+}
+
+.spark-bar {
+    width: 6px;
+    corner-radius: 2px;
+    background-color: #c7d2fe;
+}
+
+/* CHART */
+
+.row2 {
+    height: 320px;
+    gap: 16px;
+}
+
+.chart {
+    width: 1s;
+    height: 1s;
+    padding: 20px;
+    padding-top: 16px;
+    gap: 24px;
+}
+
+.chart-head {
+    height: 32px;
+    alignment: left;
+    gap: 1s;
+}
+
+button-group.segments {
+    height: 32px;
+    padding: 2px;
+    gap: 0px;
+    corner-radius: 8px;
+    background-color: #f3f4f6;
+}
+
+button-group.segments > toggle-button {
+    width: 64px;
+    height: 28px;
+    padding-left: 0px;
+    padding-right: 0px;
+    corner-radius: 6px;
+    border-width: 0px;
+    background-color: transparent;
+    color: #6b7280;
+    font-size: 13px;
+    font-weight: semi-bold;
+}
+
+button-group.segments > toggle-button:checked {
+    background-color: #ffffff;
+    color: #111827;
+    shadow: 0px 1px 3px #11182740;
+}
+
+.plot {
+    height: 228px;
+}
+
+.grid-line {
+    position-type: absolute;
+    width: 1s;
+    height: 1px;
+    background-color: #eef0f3;
+}
+
+.bars {
+    size: 1s;
+}
+
+.slot {
+    width: 25px;
+    height: 1s;
+    padding-left: 4px;
+    gap: 2px;
+    alignment: bottom-left;
+}
+
+.bar,
+.previous {
+    width: 17px;
+    corner-top-left-radius: 4px;
+    corner-top-right-radius: 4px;
+    background-color: #6366f1;
+}
+
+.previous {
+    display: none;
+    background-color: #c7d2fe;
+}
+
+.plot.compare .slot {
+    padding-left: 3px;
+}
+
+.plot.compare .bar,
+.plot.compare .previous {
+    display: flex;
+    width: 8px;
+}
+
+/* FILTERS */
+
+.filters {
+    width: 336px;
+    height: 1s;
+    padding: 20px;
+}
+
+.filters-title {
+    height: 36px;
+}
+
+.filters-body {
+    height: 1s;
+    gap: 12px;
+}
+
+.checks {
+    height: auto;
+}
+
+.check-row {
+    height: 32px;
+    alignment: left;
+    gap: 10px;
+}
+
+.check-row > checkbox {
+    size: 18px;
+    corner-radius: 4px;
+}
+
+.compare-row {
+    height: 28px;
+    alignment: left;
+    gap: 1s;
+}
+
+switch {
+    width: 40px;
+    height: 22px;
+}
+
+switch .thumb {
+    left: 2px;
+    size: 18px;
+    shadow: 0px 1px 3px #11182740;
+}
+
+switch:checked .thumb {
+    left: 20px;
+}
+
+.filter-buttons {
+    height: 36px;
+    alignment: right;
+    gap: 12px;
+}
+
+.filter-buttons > button {
+    width: 100px;
+}
+
+/* ORDERS */
+
+.orders {
+    height: auto;
+}
+
+.orders-header {
+    height: 44px;
+    padding-left: 24px;
+    padding-right: 24px;
+    alignment: left;
+    corner-top-left-radius: 12px;
+    corner-top-right-radius: 12px;
+    background-color: #f9fafb;
+    background-image: linear-gradient(to bottom, transparent 43px, #e5e7eb 43px);
+}
+
+.column {
+    font-size: 12px;
+    font-weight: semi-bold;
+    color: #6b7280;
+}
+
+.col-order {
+    width: 116px;
+}
+
+.col-customer {
+    width: 300px;
+}
+
+.col-status {
+    width: 160px;
+}
+
+.col-progress {
+    width: 120px;
+}
+
+.col-amount {
+    width: 1s;
+    text-align: right;
+}
+
+.order {
+    height: 52px;
+    padding-left: 24px;
+    padding-right: 24px;
+    alignment: left;
+    background-color: #ffffff;
+    background-image: linear-gradient(to bottom, transparent 51px, #f3f4f6 51px);
+}
+
+.order:last-child {
+    corner-bottom-left-radius: 12px;
+    corner-bottom-right-radius: 12px;
+}
+
+.order:hover {
+    background-color: #eef2ff;
+}
+
+.order-number {
+    color: #6b7280;
+}
+
+.order > .col-customer {
+    height: auto;
+    alignment: left;
+    gap: 12px;
+}
+
+.avatar {
+    size: 28px;
+    alignment: center;
+    corner-radius: 50%;
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: semi-bold;
+}
+
+.order > .col-status {
+    height: auto;
+    alignment: left;
+}
+
+.pill {
+    height: 22px;
+    padding-left: 10px;
+    padding-right: 10px;
+    alignment: center;
+    corner-radius: 11px;
+    font-size: 12px;
+    font-weight: semi-bold;
+}
+
+.pill.paid {
+    background-color: #dcfce7;
+    color: #166534;
+}
+
+.pill.refunded {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+
+.pill.shipped {
+    background-color: #dbeafe;
+    color: #1e40af;
+}
+
+.pill.pending {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+
+.progress {
+    height: 6px;
+    corner-radius: 3px;
+    background-color: #e5e7eb;
+}
+
+.progress-fill {
+    height: 1s;
+    corner-radius: 3px;
+    background-color: #4f46e5;
+}
+
+.order > .col-amount {
+    font-weight: semi-bold;
+}
+
+/* The scrollbar thumb stays visible, as in the rows scenario. */
+scrollview.content.v-scroll > scrollbar.vertical > .thumb,
+scrollview.content.v-scroll:hover > scrollbar.vertical > .thumb,
+scrollview.content.v-scroll:active > scrollbar.vertical > .thumb {
+    background-color: #c1c1c1;
+    opacity: 1;
+}

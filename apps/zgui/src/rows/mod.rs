@@ -2,7 +2,6 @@
 
 mod list;
 mod row;
-mod wheel;
 
 pub use list::RowsProps;
 pub use row::RowProps;

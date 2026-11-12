@@ -106,4 +106,23 @@ pub struct Provenance {
     pub versions: Vec<FrameworkVersion>,
     /// The validity of the bench reports.
     pub validity: ValidityTally,
+    /// The sessions ran an accessibility bus. `None` when the run does not record it.
+    pub accessibility: Option<bool>,
+    /// Every invocation of the runner that wrote cells of the run, oldest first.
+    pub history: Vec<Invocation>,
+}
+
+/// One invocation of the runner: a run grows by scenarios when the runner resumes it.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct Invocation {
+    /// The start, in Unix seconds.
+    pub started_unix: Option<u64>,
+    /// The scenarios it ran.
+    pub scenarios: Vec<String>,
+    /// The frameworks it ran.
+    pub frameworks: Vec<String>,
+    /// The source revisions.
+    pub revisions: Vec<Revision>,
+    /// The sessions ran an accessibility bus.
+    pub accessibility: Option<bool>,
 }

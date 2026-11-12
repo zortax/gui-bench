@@ -1,5 +1,5 @@
 //! A dot plot card of one metric over the shown cells of one or more scenarios at a picked size
-//! and refresh rate, and the picker of that size and rate.
+//! and refresh rate, or at the size and rate of a scope, and the picker of that size and rate.
 
 use explorer_core::api::MetricRef;
 use explorer_core::scale::ScaleKind;
@@ -8,6 +8,7 @@ use leptos::prelude::*;
 use super::build::{Build, baseline_label};
 use super::controls::{SizePicker, sizes_label};
 use super::data::Data;
+use super::scope::Scope;
 use crate::chart::{Axis, ChartCard, DotModel, DotPlot, DotRow, Rule, spread_note, use_card};
 use crate::state::{Selection, use_explorer};
 
@@ -77,9 +78,40 @@ pub fn DotsCard(
     size: RwSignal<String>,
     rate: RwSignal<String>,
 ) -> impl IntoView {
+    let at = Signal::derive(move || {
+        let (rows, updates) = parse_size(&size.get());
+        let hz: f64 = rate.get().parse().unwrap_or(0.0);
+        Some((rows, (updates > 0).then_some(updates), hz))
+    });
+    let scenarios: Vec<(String, String)> = scenarios
+        .iter()
+        .map(|(s, h)| ((*s).to_owned(), (*h).to_owned()))
+        .collect();
     view! {
         <ChartCard title=title>
-            <Dots data=data words=words metric=metric scenarios=scenarios size=size rate=rate/>
+            <Dots data=data words=words metric=metric scenarios=Signal::stored(scenarios) at=at/>
+        </ChartCard>
+    }
+}
+
+/// A card with a dot plot of one metric at the size and rate of a scope.
+#[component]
+pub fn ScopeDotsCard(
+    data: Data,
+    #[prop(into)] title: String,
+    words: &'static str,
+    metric: MetricRef,
+    #[prop(into)] scenario: Signal<String>,
+    scope: Scope,
+) -> impl IntoView {
+    let at = Signal::derive(move || {
+        let (rows, updates) = scope.size.get()?;
+        Some((rows, updates, scope.hz.get()?))
+    });
+    let scenarios = Signal::derive(move || vec![(scenario.get(), String::new())]);
+    view! {
+        <ChartCard title=title>
+            <Dots data=data words=words metric=metric scenarios=scenarios at=at/>
         </ChartCard>
     }
 }
@@ -89,9 +121,9 @@ fn Dots(
     data: Data,
     words: &'static str,
     metric: MetricRef,
-    scenarios: Vec<(&'static str, &'static str)>,
-    size: RwSignal<String>,
-    rate: RwSignal<String>,
+    #[prop(into)] scenarios: Signal<Vec<(String, String)>>,
+    /// The rows, ticker updates and rate of the shown cells.
+    at: Signal<Option<(u32, Option<u32>, f64)>>,
 ) -> impl IntoView {
     let explorer = use_explorer();
     let ctx = use_card();
@@ -105,16 +137,18 @@ fn Dots(
         .to_owned();
     let model = Signal::derive(move || {
         let prefs = explorer.prefs.snapshot();
-        let (rows, updates) = parse_size(&size.get());
-        let hz: f64 = rate.get().parse().unwrap_or(0.0);
+        let at = at.get();
         let b = Build::new(&data, &prefs, ctx.uncertainty());
+        let scenarios = scenarios.get();
         let mut out: Vec<DotRow> = Vec::new();
         for (sc, heading) in &scenarios {
             let r = b.dot_rows(sc, &metric, |k| {
-                k.rows == rows && k.updates.unwrap_or(0) == updates && k.hz == hz
+                at.is_some_and(|(rows, updates, hz)| {
+                    k.rows == rows && k.updates.unwrap_or(0) == updates.unwrap_or(0) && k.hz == hz
+                })
             });
             if scenarios.len() > 1 && !r.is_empty() {
-                out.push(DotRow::header(*heading));
+                out.push(DotRow::header(heading.clone()));
             }
             out.extend(r);
         }

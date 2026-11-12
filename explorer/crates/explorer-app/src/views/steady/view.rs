@@ -1,5 +1,5 @@
-//! The layout of the steady view: the scenario, size and rate controls and one dot plot per
-//! cost metric.
+//! The layout of the steady view: the scenario, size and rate controls, the frame-time profile
+//! and one dot plot per cost metric.
 
 use std::sync::Arc;
 
@@ -10,7 +10,10 @@ use leptos::prelude::*;
 use super::efficiency::Efficiency;
 use crate::chart::{Axis, ChartCard, DotModel, DotPlot, Rule, spread_note, use_card};
 use crate::state::{RunView, Selection, use_explorer, use_param};
-use crate::views::kit::{Build, Data, SizePicker, ViewHead, WithData, baseline_label, sizes_label};
+use crate::views::frames::{ProfileCard, SOURCES, Source};
+use crate::views::kit::{
+    Build, Data, Scope, ScopeBar, ViewHead, WithData, baseline_label, use_scope,
+};
 use crate::widgets::{Empty, Segmented};
 
 /// The cost metrics of the pacing measurement: section, metric, title, axis words.
@@ -29,9 +32,9 @@ const COSTS: [(&str, &str, &str, &str); 8] = [
     ),
     (
         "frame_pacing",
-        "fps",
-        "Delivered frames",
-        "frames per second",
+        "stale_refreshes",
+        "Stale refreshes",
+        "% of refreshes that repeat the last frame",
     ),
     (
         "frame_cost",
@@ -53,9 +56,9 @@ const COSTS: [(&str, &str, &str, &str); 8] = [
     ),
     (
         "frame_pacing",
-        "jank_count",
-        "Janky frames",
-        "frames 1.5× slower than the median",
+        "interval_max",
+        "Longest gap",
+        "ms between two presents, worst",
     ),
     (
         "resources",
@@ -71,7 +74,17 @@ fn metrics() -> Vec<MetricRef> {
         .map(|(s, m, _, _)| MetricRef::new("pacing", s, m))
         .collect();
     out.extend(super::efficiency::metrics());
+    out.extend(crate::views::frames::metrics(&pacing_source("ticker")));
     out
+}
+
+/// Returns the frame source of a steady scenario.
+fn pacing_source(scenario: &str) -> Source {
+    SOURCES
+        .iter()
+        .copied()
+        .find(|s| s.scenario == scenario)
+        .unwrap_or(SOURCES[0])
 }
 
 /// The steady view.
@@ -83,7 +96,7 @@ pub fn SteadyView() -> impl IntoView {
         <div class="gx-view">
             <ViewHead
                 title="Ticker & spinner"
-                text="Continuous animation: a timer updates table rows every 16 ms (ticker), or a 24 px square turns above static rows (spinner). Lower cost per second is better at equal delivered frames."
+                text="Continuous animation: a timer updates table rows every 16 ms (ticker), or a 24 px square turns above static rows (spinner). Lower cost per second is better at equal frame times."
             >
                 <Segmented
                     options=vec![("ticker".to_owned(), "ticker".to_owned()), ("spinner".to_owned(), "spinner".to_owned())]
@@ -113,31 +126,19 @@ pub fn SteadyView() -> impl IntoView {
 
 #[component]
 fn Costs(data: Data, scenario: Memo<String>) -> impl IntoView {
-    let explorer = use_explorer();
-    let size = RwSignal::new(String::new());
-    let rate = RwSignal::new(String::new());
-    let d = data.clone();
-    let sizes = Signal::derive(move || {
-        let prefs = explorer.prefs.snapshot();
-        Selection::new(d.overview(), &prefs, &scenario.get())
-            .sizes()
-            .into_iter()
-            .map(|(r, u)| (format!("{r}:{}", u.unwrap_or(0)), sizes_label(r, u)))
-            .collect::<Vec<_>>()
-    });
-    let d = data.clone();
-    let rates = Signal::derive(move || {
-        let prefs = explorer.prefs.snapshot();
-        Selection::new(d.overview(), &prefs, &scenario.get())
-            .rates()
-            .into_iter()
-            .map(|hz| (hz.to_string(), format!("{hz} Hz")))
-            .collect::<Vec<_>>()
-    });
+    let scope = use_scope(
+        data.run.overview.clone(),
+        Signal::derive(move || scenario.get()),
+    );
     view! {
-        <div class="gx-view__controls">
-            <SizePicker options=sizes value=size title="Rows and updates per tick"/>
-            <SizePicker options=rates value=rate title="Refresh rate"/>
+        <div class="gx-view__controls"><ScopeBar scope=scope/></div>
+        <div class="gx-grid gx-grid--wide">
+            {
+                let data = data.clone();
+                move || view! {
+                    <ProfileCard data=data.clone() source=pacing_source(&scenario.get()) scope=scope per_refresh=Signal::stored(false)/>
+                }
+            }
         </div>
         <div class="gx-grid">
             {COSTS.iter().map(|(section, metric, title, words)| {
@@ -145,7 +146,7 @@ fn Costs(data: Data, scenario: Memo<String>) -> impl IntoView {
                 let d = data.clone();
                 view! {
                     <ChartCard title=*title>
-                        <CostPlot data=d scenario=scenario metric=m words=*words size=size rate=rate/>
+                        <CostPlot data=d scenario=scenario metric=m words=*words scope=scope/>
                     </ChartCard>
                 }
             }).collect_view()}
@@ -160,8 +161,7 @@ fn CostPlot(
     scenario: Memo<String>,
     metric: MetricRef,
     words: &'static str,
-    size: RwSignal<String>,
-    rate: RwSignal<String>,
+    scope: Scope,
 ) -> impl IntoView {
     let explorer = use_explorer();
     let ctx = use_card();
@@ -172,13 +172,10 @@ fn CostPlot(
     });
     let model = Signal::derive(move || {
         let prefs = explorer.prefs.snapshot();
-        let (rows, updates) = size.get().split_once(':').map_or((0, 0), |(r, u)| {
-            (r.parse().unwrap_or(0), u.parse().unwrap_or(0))
-        });
-        let hz: f64 = rate.get().parse().unwrap_or(0.0);
+        let hz = scope.hz.get().unwrap_or(60.0);
         let b = Build::new(&data, &prefs, ctx.uncertainty());
         let rows = b.dot_rows(&scenario.get(), &metric, |k| {
-            k.rows == rows && k.updates.unwrap_or(0) == updates && k.hz == hz
+            scope.holds(k.rows, k.updates, k.hz)
         });
         let base = prefs.base.is_some();
         let mut x = Axis::value(
@@ -192,11 +189,11 @@ fn CostPlot(
         if base {
             x.kind = ScaleKind::Log;
         }
-        let rules = if metric.metric == "fps" && !base {
+        let rules = if metric.metric.starts_with("interval") && !base {
             vec![Rule {
                 horizontal: false,
-                value: hz,
-                label: String::new(),
+                value: 1000.0 / hz,
+                label: "one refresh".to_owned(),
             }]
         } else {
             Vec::new()

@@ -5,7 +5,6 @@
 
 use dioxus::prelude::*;
 
-use crate::rows::wheel::use_detent_scroll;
 use crate::rows::{CSS, Row};
 use crate::spec;
 
@@ -27,7 +26,6 @@ pub fn VirtualRows(count: usize) -> Element {
         top: 0.0,
         height: f64::from(spec::WINDOW.1),
     });
-    let wheel = use_detent_scroll();
 
     let Viewport { top, height } = viewport();
     let row = f64::from(spec::ROW_HEIGHT);
@@ -39,15 +37,11 @@ pub fn VirtualRows(count: usize) -> Element {
         style { {CSS} }
         div {
             class: "rows",
-            onmounted: move |event| wheel.mounted(event),
             onscroll: move |event| {
                 viewport.set(Viewport {
                     top: event.scroll_top(),
                     height: f64::from(event.client_height()),
                 })
-            },
-            onwheel: move |event| {
-                wheel.scroll(event, move |offset| viewport.with_mut(|v| v.top = offset.y))
             },
             div { style: "height: {above}px" }
             for index in first..end {

@@ -6,6 +6,7 @@
 
 #[path = "../../shared/cli.rs"]
 mod cli;
+mod dashboard;
 mod page;
 mod rows;
 mod search;
@@ -20,6 +21,7 @@ use dioxus_native::winit::platform::wayland::WindowAttributesWayland;
 use dioxus_native::{Config, LogicalSize, WindowAttributes};
 
 use crate::cli::{Scenario, Variant};
+use crate::dashboard::Dashboard;
 use crate::rows::Rows;
 use crate::search::Search;
 use crate::spinner::Spinner;
@@ -65,5 +67,6 @@ fn App(scenario: Scenario) -> Element {
         Scenario::Spinner { count } => rsx! { Spinner { count } },
         Scenario::Search { count, filter } => rsx! { Search { count, filter } },
         Scenario::Virtual { count } => rsx! { VirtualRows { count } },
+        Scenario::Dashboard { count } => rsx! { Dashboard { count } },
     }
 }

@@ -4,12 +4,13 @@
 mod header;
 mod row;
 
-use eframe::egui::{Color32, Context, Stroke, TextStyle, Theme, Ui, style::ScrollStyle, vec2};
+use eframe::egui::{
+    Color32, Context, ScrollArea, Stroke, TextStyle, Theme, Ui, style::ScrollStyle, vec2,
+};
 
 pub use header::header;
 pub use row::row;
 
-use crate::scroll::Scroll;
 use crate::{font, spec};
 
 /// Returns the egui color of a spec color.
@@ -42,11 +43,10 @@ pub fn setup(ctx: &Context) {
 
 /// Shows the rows that `add_rows` adds in the scroll area below the header. The row separators
 /// take the row border color.
-pub fn list(ui: &mut Ui, scroll: &mut Scroll, add_rows: impl FnOnce(&mut Ui)) {
-    let output = scroll.area().show(ui, |ui| {
+pub fn list(ui: &mut Ui, add_rows: impl FnOnce(&mut Ui)) {
+    ScrollArea::vertical().auto_shrink(false).show(ui, |ui| {
         ui.visuals_mut().widgets.noninteractive.bg_stroke =
             Stroke::new(spec::BORDER_HEIGHT, color(spec::ROW_BORDER));
         add_rows(ui);
     });
-    scroll.end(&output);
 }

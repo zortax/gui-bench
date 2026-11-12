@@ -294,7 +294,7 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  font-weight: 700;
+  font-weight: var(--strong);
 }
 
 .gx-error__text {

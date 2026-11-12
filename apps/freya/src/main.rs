@@ -4,6 +4,7 @@
 
 #[path = "../../shared/cli.rs"]
 mod cli;
+mod dashboard;
 mod page;
 mod rows;
 mod search;
@@ -30,5 +31,6 @@ fn main() {
         Scenario::Spinner { count } => spinner::run(title, count),
         Scenario::Search { count, filter } => search::run(title, count, filter),
         Scenario::Virtual { count } => virtual_rows::run(title, count),
+        Scenario::Dashboard { count } => dashboard::run(title, count),
     }
 }

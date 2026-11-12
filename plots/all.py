@@ -6,6 +6,7 @@ Usage: python3 plots/all.py [run dir]   (default: results/latest)
 import sys
 
 import common as c
+import dashboard
 import efficiency
 import export
 import footprint
@@ -34,6 +35,8 @@ def outputs(run):
     yield from spinner.plot(run)
     yield typing_latency.plot(run)
     yield resize.plot(run)
+    yield from dashboard.plots(run)
+    yield resize.plot(run, "dashboard-resize")
     yield from footprint.plot(run)
     yield efficiency.plot(run)
     yield export.export(run)

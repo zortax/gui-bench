@@ -9,11 +9,10 @@
 mod keys;
 mod ticker;
 
-use eframe::egui::{self, Context, RawInput, Ui};
+use eframe::egui::{self, Context, Ui};
 
 use crate::cli::Ticker;
 use crate::page;
-use crate::scroll::Scroll;
 use crate::spec::{self, Ids, Row};
 use crate::window;
 
@@ -24,7 +23,7 @@ pub fn run(title: &str, count: usize, ticker: Option<Ticker>) -> eframe::Result 
     })
 }
 
-/// The table data, its selection and its scroll state.
+/// The table data and its selection.
 struct Table {
     count: usize,
     ids: Ids,
@@ -32,7 +31,6 @@ struct Table {
     /// The id of the selected row.
     selected: Option<u64>,
     ticker: Option<ticker::Clock>,
-    scroll: Scroll,
 }
 
 impl Table {
@@ -45,7 +43,6 @@ impl Table {
             rows,
             selected: None,
             ticker: ticker.map(ticker::Clock::new),
-            scroll: Scroll::default(),
         }
     }
 
@@ -60,10 +57,6 @@ impl Table {
 }
 
 impl eframe::App for Table {
-    fn raw_input_hook(&mut self, _: &Context, input: &mut RawInput) {
-        self.scroll.take(input);
-    }
-
     fn logic(&mut self, ctx: &Context, _: &mut eframe::Frame) {
         if let Some(clock) = &mut self.ticker {
             clock.advance(ctx, &mut self.rows);
@@ -82,7 +75,7 @@ impl eframe::App for Table {
         page::header(ui, &status, |_| {});
 
         let mut clicked = None;
-        page::list(ui, &mut self.scroll, |ui| {
+        page::list(ui, |ui| {
             for row in &self.rows {
                 if page::row(ui, row, self.selected == Some(row.id)).clicked() {
                     clicked = Some(row.id);

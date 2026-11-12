@@ -1,4 +1,4 @@
-"""The resize scenario: a resize storm (640x480 to 1200x800 in a second, a configure every
+"""The resize scenarios, of the rows app and of the dashboard: a resize storm (640x480 to 1200x800 in a second, a configure every
 refresh) and a scale switch between 1 and 2. Configure to present is how long the app takes to show
 a new size; stale frames are frames at an old size; the memory panels compare scale 2 with scale
 1.
@@ -43,32 +43,38 @@ PANELS = [
 ]
 
 
-def plot(run):
-    sizes = sorted({cell.rows for cell in run.of("resize")})
+WHAT = {"resize": ("Rows app", "rows"), "dashboard-resize": ("Dashboard", "orders")}
+
+
+def plot(run, scenario="resize"):
+    sizes = sorted({cell.rows for cell in run.of(scenario)})
     if not sizes:
         return None
-    n = len(run.frameworks("resize"))
+    app, unit_rows = WHAT[scenario]
+    n = len(run.frameworks(scenario))
     cols = 3
     rows_n = (len(PANELS) + cols - 1) // cols
     width = 17.0
     height, adjust = c.panel_grid(rows_n * len(sizes), cols, 0.3 * n + 0.25, width, wspace=0.16)
     fig = c.figure(width, height, "Resize and scale switch",
-                   "Rows app, 60 Hz. Dot: median iteration · whisker: best to worst iteration")
+                   f"{app}, 60 Hz. Dot: median iteration · whisker: best to worst iteration")
     grid = fig.subplots(rows_n * len(sizes), cols, squeeze=False)
     fig.subplots_adjust(**adjust)
     for s, rows in enumerate(sizes):
         for i, (report, value, title, unit, fmt) in enumerate(PANELS):
             ax = grid[s * rows_n + i // cols][i % cols]
-            c.dots(ax, run.of("resize", rows=rows),
+            c.dots(ax, run.of(scenario, rows=rows),
                    lambda cell, r=report, v=value: v(cell.report(r)), fmt)
-            c.hstyle(ax, title, unit, note=f"{rows:,} rows")
+            c.hstyle(ax, title, unit, note=f"{rows:,} {unit_rows}")
             if i % cols:
                 ax.set_yticklabels([])
         for j in range(len(PANELS), rows_n * cols):
             grid[s * rows_n + j // cols][j % cols].set_visible(False)
-    c.legend(fig, run, scenario="resize")
-    return c.save(fig, run, "resize", "resize")
+    c.legend(fig, run, scenario=scenario)
+    return c.save(fig, run, "resize", scenario)
 
 
 if __name__ == "__main__":
-    print(plot(c.load(sys.argv[1] if len(sys.argv) > 1 else "results/latest")))
+    loaded = c.load(sys.argv[1] if len(sys.argv) > 1 else "results/latest")
+    for name in WHAT:
+        print(plot(loaded, name))

@@ -53,3 +53,50 @@ fn loads_every_readable_run() {
     let unsupported = runs.iter().filter(|r| r.status != RunStatus::Ok).count();
     eprintln!("{} runs, {unsupported} unsupported", runs.len());
 }
+
+#[test]
+fn frame_profiles_place_gaps_inside_their_iterations() {
+    let Some(dir) = results() else {
+        return;
+    };
+    let store = Store::new(dir);
+    let Ok(run) = store.run("latest") else {
+        return;
+    };
+    let mut points: Vec<(explorer_data::Point, String)> = Vec::new();
+    for cell in &run.overview.cells {
+        for m in ["scroll", "pacing", "resize"] {
+            if !cell.done.iter().any(|d| d == m) {
+                continue;
+            }
+            let point = explorer_data::Point {
+                scenario: cell.key.scenario.clone(),
+                hz: cell.key.hz,
+                rows: cell.key.rows,
+                updates: cell.key.updates,
+            };
+            if !points.iter().any(|(p, n)| *p == point && n == m) {
+                points.push((point, m.to_owned()));
+            }
+        }
+    }
+    let mut lanes = 0;
+    for (point, m) in &points {
+        for p in run.frame_profiles(point, m) {
+            for lane in &p.lanes {
+                lanes += 1;
+                for g in &lane.gaps {
+                    assert!(
+                        g.t_ms >= 0.0 && g.t_ms <= lane.window_ms + 1.0,
+                        "{point:?} {m}"
+                    );
+                }
+                if lane.complete {
+                    let late: u32 = lane.gaps.iter().filter(|g| g.missed > 0).count() as u32;
+                    assert!(late <= lane.frames, "{point:?} {m}");
+                }
+            }
+        }
+    }
+    eprintln!("{} points, {lanes} lanes", points.len());
+}

@@ -11,6 +11,7 @@ use serde::Serialize;
 use serde_json::json;
 
 use crate::cell::CellRun;
+use crate::dashboard::Target;
 use crate::layout::{OUTPUT, Page, ROW_HEIGHT};
 use crate::phases;
 
@@ -98,16 +99,29 @@ pub fn pacing(run: &CellRun) -> PresetParams {
 /// `detector` is `pixels` or `app_mark`.
 pub fn hover(run: &CellRun, page: Page, detector: &str) -> PresetParams {
     let x = OUTPUT.0 / 2;
+    let target = Target {
+        at: (x, page.row_center(HOVER_ROW)),
+        away: (x, page.row_center(AWAY_ROW)),
+        roi: page.rows_roi(HOVER_ROW, 1),
+    };
+    hover_at(run, &target, detector)
+}
+
+/// A hover probe of any element: the pointer enters `target.at` from `target.away`, and the
+/// pixels of `target.roi` tell the change.
+pub fn hover_at(run: &CellRun, target: &Target, detector: &str) -> PresetParams {
     common(run.effort.iterations)
-        .set(
-            "position",
-            json!({ "x": x, "y": page.row_center(HOVER_ROW) }),
-        )
-        .set("away", json!({ "x": x, "y": page.row_center(AWAY_ROW) }))
-        .set("roi", page.rows_roi(HOVER_ROW, 1))
+        .set("position", point(target.at))
+        .set("away", point(target.away))
+        .set("roi", target.roi.clone())
         .set("detector", detector)
         .set("repeats", run.effort.hover_repeats)
         .set("timeout", "2s")
+}
+
+/// Returns a window point as preset JSON.
+fn point((x, y): (i32, i32)) -> serde_json::Value {
+    json!({ "x": x, "y": y })
 }
 
 /// Returns true when a list of `rows` rows is tall enough for a glide in both directions.
@@ -119,19 +133,19 @@ pub fn scrolls(rows: u32) -> bool {
 /// The scroll glide: a finger at 800 px/s with no kinetic tail, four events per refresh, so every
 /// frame consumes the same scroll. Motion estimation reads the rows above the pointer.
 pub fn scroll(run: &CellRun) -> PresetParams {
+    let roi = json!({ "x": 0, "y": 0, "w": OUTPUT.0, "h": SCROLL_ROI_HEIGHT });
+    scroll_at(run, (OUTPUT.0 / 2, SCROLL_POINTER_Y), roi)
+}
+
+/// The scroll glide with the pointer at `pointer`, and motion estimation in `roi`.
+pub fn scroll_at(run: &CellRun, pointer: (i32, i32), roi: serde_json::Value) -> PresetParams {
     PresetParams::new()
         .set("source", json!({ "type": "finger", "kinetic": false }))
         .set("velocity", SCROLL_VELOCITY)
         .set("duration", format!("{SCROLL_SECONDS}s"))
         .set("rate_hz", run.cell.hz * 4.0)
-        .set(
-            "position",
-            json!({ "x": OUTPUT.0 / 2, "y": SCROLL_POINTER_Y }),
-        )
-        .set(
-            "roi",
-            json!({ "x": 0, "y": 0, "w": OUTPUT.0, "h": SCROLL_ROI_HEIGHT }),
-        )
+        .set("position", point(pointer))
+        .set("roi", roi)
         .set("iterations", run.effort.iterations + 1)
         .set("warmup", 1)
 }
@@ -140,14 +154,21 @@ pub fn scroll(run: &CellRun) -> PresetParams {
 /// button goes down and up at once, so apps that select on the press and apps that select on the
 /// release start from the same input time.
 pub fn click(run: &CellRun, page: Page, row: i32) -> PresetParams {
+    click_at(
+        run,
+        (OUTPUT.0 / 2, page.row_center(row)),
+        page.rows_roi(row, 1),
+    )
+}
+
+/// A click probe of any toggle: the click at `at` changes the pixels of `roi`, and the next click
+/// toggles it back.
+pub fn click_at(run: &CellRun, at: (i32, i32), roi: serde_json::Value) -> PresetParams {
     common(run.effort.iterations)
-        .set(
-            "position",
-            json!({ "x": OUTPUT.0 / 2, "y": page.row_center(row) }),
-        )
+        .set("position", point(at))
         .set("toggle", true)
         .set("hold", "0ms")
-        .set("roi", page.rows_roi(row, 1))
+        .set("roi", roi)
         .set("detector", "pixels")
         .set("repeats", run.effort.op_repeats)
         .set("timeout", PROBE_TIMEOUT)

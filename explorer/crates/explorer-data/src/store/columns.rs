@@ -1,6 +1,6 @@
 //! The metric columns of a run: every metric summary of every report, the pooled latency
-//! samples, and the derived metrics that the plots compute (CPU per table operation, memory kept
-//! per churn cycle, startup milestones).
+//! samples, and derived metrics: CPU per table operation, memory kept per churn cycle, startup
+//! milestones, and the frame interval percentiles and stale refreshes of every iteration.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
@@ -8,7 +8,7 @@ use explorer_core::api::{Better, CellId, MetricColumn, MetricInfo, MetricRef, St
 use explorer_core::stats::{quantile, sorted};
 
 use super::load::LoadedCell;
-use crate::report::{BenchReport, Section};
+use crate::report::{BenchReport, QuantilesRaw, Section};
 
 #[derive(Default)]
 pub(super) struct Columns {
@@ -58,6 +58,12 @@ impl Columns {
                 if let Some(stat) = pooled_latency(section) {
                     let r = MetricRef::new(name, &section.name, "total_ms");
                     self.push(r, ("ms", Better::Lower, true), id, &scenario, stat);
+                }
+                if section.name == "frame_pacing" {
+                    for (metric, unit, stat) in pacing_metrics(section) {
+                        let r = MetricRef::new(name, &section.name, metric);
+                        self.push(r, (unit, Better::Lower, false), id, &scenario, stat);
+                    }
                 }
             }
             if name.starts_with("op-")
@@ -152,6 +158,58 @@ fn pooled_latency(section: &Section) -> Option<Stat> {
         ci: report.total_median_ci.as_ref().map(|c| (c.lo, c.hi)),
         values,
     })
+}
+
+/// Returns the statistic of per-iteration values, or `None` without any.
+fn stat_of(values: Vec<f64>) -> Option<Stat> {
+    let s = sorted(&values);
+    let median = quantile(&s, 0.5)?;
+    let n = s.len() as f64;
+    let mean = s.iter().sum::<f64>() / n;
+    let stddev = (s.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / n).sqrt();
+    Some(Stat {
+        median,
+        mean,
+        stddev,
+        min: s[0],
+        max: s[s.len() - 1],
+        ci: None,
+        values,
+    })
+}
+
+/// Returns the frame metrics that the report summaries lack: the interval percentiles p90, p95
+/// and p99.9 of every iteration, and the share of refreshes that repeat the last frame.
+fn pacing_metrics(section: &Section) -> Vec<(&'static str, &'static str, Stat)> {
+    let reports: Vec<_> = section
+        .iterations
+        .iter()
+        .filter(|it| it.variant.is_none())
+        .filter_map(|it| it.report.as_ref())
+        .collect();
+    let quantile = |pick: fn(&QuantilesRaw) -> Option<f64>| {
+        reports
+            .iter()
+            .filter_map(|r| r.interval_ms.as_ref().and_then(pick))
+            .collect::<Vec<_>>()
+    };
+    let stale: Vec<f64> = reports
+        .iter()
+        .filter_map(|r| {
+            let refreshes = r.duration_ms? * r.refresh_hz? / 1000.0;
+            let missed = r.missed_vblanks?;
+            (refreshes >= 1.0).then(|| (100.0 * missed / refreshes).min(100.0))
+        })
+        .collect();
+    [
+        ("interval_p90", "ms", quantile(|q| q.p90)),
+        ("interval_p95", "ms", quantile(|q| q.p95)),
+        ("interval_p999", "ms", quantile(|q| q.p999)),
+        ("stale_refreshes", "percent", stale),
+    ]
+    .into_iter()
+    .filter_map(|(metric, unit, values)| Some((metric, unit, stat_of(values)?)))
+    .collect()
 }
 
 /// Returns the app CPU ms per table operation per iteration: every probe repeat runs the

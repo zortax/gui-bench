@@ -4,6 +4,9 @@
 
 #[path = "../../shared/cli.rs"]
 mod cli;
+mod dashboard;
+#[path = "../../shared/dashboard.rs"]
+mod dashboard_spec;
 mod page;
 mod rows;
 mod search;
@@ -33,6 +36,7 @@ fn main() -> Result<(), ApplicationError> {
             } => table::build(cx, count, variant, ticker),
             Scenario::Spinner { count } => spinner::build(cx, count),
             Scenario::Search { count, filter } => search::build(cx, count, filter),
+            Scenario::Dashboard { count } => dashboard::build(cx, count),
         }
     })
     .title(scenario.title())

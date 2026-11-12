@@ -4,5 +4,5 @@
 mod bench;
 mod index;
 
-pub use bench::{BenchReport, Environment, Section};
+pub use bench::{BenchReport, Environment, QuantilesRaw, Section};
 pub use index::{CellOutcome, RunIndex, Startup};

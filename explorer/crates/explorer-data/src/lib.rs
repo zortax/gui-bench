@@ -10,6 +10,6 @@ mod error;
 mod report;
 mod store;
 
-pub use detail::CellFile;
+pub use detail::{CellFile, Point};
 pub use error::DataError;
 pub use store::{RunData, Store};

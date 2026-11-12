@@ -11,7 +11,6 @@ use iced::widget::scrollable::{Direction, Scrollable};
 use iced::{Color, Element, Length, Size, Theme, theme, window};
 
 use crate::rows::scrollbar;
-use crate::rows::wheel::Wheel;
 use crate::spec;
 
 /// Returns a color of the spec.
@@ -41,14 +40,11 @@ pub fn style<State>(_: &State, _: &Theme) -> theme::Style {
     }
 }
 
-/// Returns the scroll container below the header, filling the rest of the window. Wheel
-/// detents move it as far as in the rows scenario.
+/// Returns the scroll container below the header, filling the rest of the window.
 pub fn list<'a, Message: 'a>(scroll: Scrollable<'a, Message>) -> Element<'a, Message> {
-    Wheel::new(
-        scroll
-            .direction(Direction::Vertical(scrollbar()))
-            .width(Length::Fill)
-            .height(Length::Fill),
-    )
-    .into()
+    scroll
+        .direction(Direction::Vertical(scrollbar()))
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .into()
 }
