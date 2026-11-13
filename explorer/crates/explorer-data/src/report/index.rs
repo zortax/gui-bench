@@ -79,6 +79,7 @@ pub struct Elements {
 pub struct BuildRaw {
     pub app: Option<String>,
     pub binary_bytes: Option<u64>,
+    pub min_binary_bytes: Option<u64>,
     pub flags: Vec<FlagRaw>,
 }
 

@@ -91,15 +91,23 @@ and the list.
 
 ```sh
 just build        # apps, editions, runner
+just build-min    # optional: every app again, built for the smallest binary
 just quick        # small matrix
 just run          # default matrix, about 2 hours
 just full         # all editions, 5 iterations, every size
 just plots        # figures for results/latest
+just image        # explorer image with the runs inside
+just image-push   # build it and push it to ghcr.io/zortax/gui-bench
 ```
 
 `just run` takes runner options, such as
 `--scenarios app --frameworks zgui,egui --rows 300,3000`. `--resume --out
 results/<run>` continues or extends a run.
+
+`just build-min` builds each app with `opt-level = "z"`, fat LTO, one codegen
+unit, `panic = "abort"`, no symbols and a size-optimized standard library
+(nightly, `rust-src`). The benchmarks never run these builds; a run records
+their sizes for the binary size chart.
 
 For valid numbers, set the CPU governor to `performance` and leave the machine
 idle; run one matrix at a time. The runner refuses `powersave` unless given
@@ -122,7 +130,7 @@ parts, framework versions. Each cell directory
 | `slope.png` | milliseconds added per 1,000 elements |
 | `smoothness.png` | slowest frames and missed refreshes against elements |
 | `timelines.png` | a fling, frame by frame |
-| `baseline.png` | startup, memory, idle CPU, hover and binary size of the small app |
+| `baseline.png` | startup, memory, idle CPU, hover and binary size (of the size build, if built) of the small app |
 | `list.png` | the virtual list at both sizes |
 
 The [explorer](explorer/README.md) is a web app over the same data.

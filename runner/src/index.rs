@@ -133,13 +133,16 @@ impl Index {
 }
 
 impl Index {
-    /// Returns, for every framework of the run, the size of its binary and the parts its app
-    /// builds by hand.
+    /// Returns, for every framework of the run, the size of its binary, the size of its size
+    /// build when there is one, and the parts its app builds by hand.
     fn builds(&self) -> Value {
         let root = frameworks::root();
         let builds = self.frameworks.iter().filter_map(|name| {
             let fw = Framework::by_name(name)?;
             let size = std::fs::metadata(fw.binary_path(&root))
+                .ok()
+                .map(|m| m.len());
+            let min_size = std::fs::metadata(fw.min_binary_path(&root))
                 .ok()
                 .map(|m| m.len());
             let flags: Vec<Value> = fw
@@ -149,7 +152,12 @@ impl Index {
                 .collect();
             Some((
                 name.clone(),
-                json!({ "app": fw.app, "binary_bytes": size, "flags": flags }),
+                json!({
+                    "app": fw.app,
+                    "binary_bytes": size,
+                    "min_binary_bytes": min_size,
+                    "flags": flags,
+                }),
             ))
         });
         Value::Object(builds.collect())

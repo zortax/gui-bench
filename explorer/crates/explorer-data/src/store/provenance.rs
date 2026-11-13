@@ -100,6 +100,7 @@ pub(super) fn collect(index: &RunIndex, entry: &Entry, cells: &[LoadedCell]) -> 
                 framework: framework.clone(),
                 app: b.app.clone().unwrap_or_else(|| framework.clone()),
                 binary_bytes: b.binary_bytes,
+                min_binary_bytes: b.min_binary_bytes,
                 flags: b
                     .flags
                     .iter()

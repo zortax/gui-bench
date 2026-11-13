@@ -270,6 +270,21 @@ impl Framework {
             .join("release")
             .join(self.binary())
     }
+
+    /// Returns the binary of the app's size build, which `just build-min` makes: the same build
+    /// optimized for the smallest file. No benchmark runs it.
+    pub fn min_binary_path(&self, root: &Path) -> PathBuf {
+        let dir = if self.build.is_empty() {
+            "min".to_owned()
+        } else {
+            format!("min-{}", self.build)
+        };
+        root.join("apps")
+            .join(self.app)
+            .join("target")
+            .join(dir)
+            .join(self.binary())
+    }
 }
 
 /// Returns the repository root.

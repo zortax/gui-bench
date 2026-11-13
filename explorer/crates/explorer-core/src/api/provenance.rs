@@ -45,8 +45,12 @@ pub struct Build {
     pub framework: String,
     /// The app directory that the build comes from.
     pub app: String,
-    /// The size of the release binary in bytes.
+    /// The size of the release binary that the benchmarks ran, in bytes. It holds line tables.
     pub binary_bytes: Option<u64>,
+    /// The size of the size build in bytes: the same app built for the smallest file and
+    /// stripped. No benchmark runs it.
+    #[serde(default)]
+    pub min_binary_bytes: Option<u64>,
     /// The parts the app builds by hand.
     pub flags: Vec<Flag>,
 }
@@ -170,6 +174,19 @@ impl Provenance {
             .iter()
             .find(|b| b.framework == framework)?
             .binary_bytes
+    }
+
+    /// Returns the size of the size build of a framework in bytes.
+    pub fn min_binary_bytes(&self, framework: &str) -> Option<u64> {
+        self.builds
+            .iter()
+            .find(|b| b.framework == framework)?
+            .min_binary_bytes
+    }
+
+    /// Returns true when the run recorded a size build.
+    pub fn has_min_builds(&self) -> bool {
+        self.builds.iter().any(|b| b.min_binary_bytes.is_some())
     }
 }
 

@@ -26,7 +26,7 @@ pub fn Builds(overview: Arc<RunOverview>) -> impl IntoView {
                 "An edition is another build of a framework's app · a flagged part is one the app builds by hand; charts draw its measurements hollow (menu: open the menu · spinner: live values · list: the whole list scenario)"
             </p>
             <table class="gx-table">
-                <thead><tr><th>"framework"</th><th>"app"</th><th>"binary"</th><th>"built by hand"</th></tr></thead>
+                <thead><tr><th>"framework"</th><th>"app"</th><th>"binary"</th><th>"built for size"</th><th>"built by hand"</th></tr></thead>
                 <tbody>
                     {builds.into_iter().map(|b| {
                         let edition = palette::is_edition(&b.framework);
@@ -38,6 +38,7 @@ pub fn Builds(overview: Arc<RunOverview>) -> impl IntoView {
                                 </td>
                                 <td class="gx-muted">{format!("apps/{}", b.app)}</td>
                                 <td>{b.binary_bytes.map_or("–".to_owned(), |v| format_value(v as f64, "bytes"))}</td>
+                                <td>{b.min_binary_bytes.map_or("–".to_owned(), |v| format_value(v as f64, "bytes"))}</td>
                                 <td class="gx-builds__flags">
                                     {if b.flags.is_empty() {
                                         view! { <span class="gx-muted">"none"</span> }.into_any()

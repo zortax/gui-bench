@@ -1,6 +1,7 @@
 """The cost of a small app: startup, memory, idle work, the size of the binary and the hover
 response of every framework at the smallest size of the app scenario. The rows name the version
-of every framework.
+of every framework. The binary is the size build of `just build-min` where the run recorded one,
+else the build that the benchmarks ran.
 
 Usage: python3 plots/baseline.py [run dir]
 """
@@ -28,8 +29,11 @@ def plot(run):
     cells = [cell for cell in cells if cell.rows == rows]
     builds = run.index.get("builds", {})
 
+    small = any(build.get("min_binary_bytes") for build in builds.values())
+    key = "min_binary_bytes" if small else "binary_bytes"
+
     def binary(cell):
-        size = builds.get(cell.framework, {}).get("binary_bytes")
+        size = builds.get(cell.framework, {}).get(key)
         return None if size is None else (size / c.MIB,) * 3
 
     panels = [
@@ -40,7 +44,8 @@ def plot(run):
          lambda cell: c.spread(cell.report("idle"), "resources", "cpu_ms_per_s"), "{:.1f}"),
         ("Hover response", "ms from the pointer to the finished frame",
          lambda cell: c.median_ci(c.response_samples(cell.report("hover-row"))), "{:.1f}"),
-        ("Binary", "MiB, release build with line tables", binary, "{:.0f}"),
+        ("Binary", "MiB, built for size and stripped" if small
+         else "MiB, release build with line tables", binary, "{:.1f}" if small else "{:.0f}"),
     ]
     width = 19.0
     axes_h = 0.34 * len(cells) + 0.3
