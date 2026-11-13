@@ -38,7 +38,7 @@ FONTS = ["Libertinus Sans", "DejaVu Sans"]
 # selects. Each hue has a pastel (the dark scheme's tone, for bands and fills), an ink (the light
 # scheme's tone, for text) and a mid tone between them for lines and marks, set so it holds on
 # paper.
-FRAMEWORKS = ["zgui", "gpui-kit", "freya", "vizia", "floem", "iced", "egui", "dioxus"]
+FRAMEWORKS = ["zgui", "gpui-kit", "freya", "vizia", "floem", "iced", "egui", "dioxus", "tauri"]
 HUES = [
     ("#92a2d5", "#4a5a8f", 0.3),   # blue
     ("#f5a191", "#a8542f", 0.3),   # orange
@@ -48,6 +48,9 @@ HUES = [
     ("#85b5ba", "#3d7076", 0.32),  # cyan
     ("#aca1cf", "#6a5a94", 0.3),   # purple
     ("#ea83a5", "#a63d61", 0.3),   # rose
+    # The web stack is the reference beside the native frameworks: it takes the neutral, so no
+    # ninth hue has to sit between the eight.
+    ("#a9a5b0", "#2c2a30", 0.75),  # neutral
 ]
 
 

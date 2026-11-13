@@ -60,12 +60,19 @@ Flagged parts carry their name in `run.json`.
 | dioxus | virtual list | `list` | Dioxus has none. `onscroll` gives the viewport; the component renders the visible rows and 8 more on each side between two spacers. |
 | dioxus | switch, menu | – | Written as on the web: a `button role=switch`, and a conditionally rendered absolute box for the menu. |
 | dioxus | placeholder | – | Blitz does not paint `placeholder`. A span over the input shows it. |
+| tauri | data | – | The page asks the Rust side for the spec's data with one command at startup. The list computes its rows in TypeScript from the same tables, since a million rows do not cross the IPC. |
+| tauri | virtual list | – | `@tanstack/solid-virtual`, the virtual list of the Solid ecosystem; SolidJS has none of its own. |
+| tauri | switch, menu | – | Written as on the web: a `button role=switch`, and a conditionally rendered absolute box for the menu. |
+| tauri | window | – | No decorations, so the page starts at the top of the window. |
+| tauri | renderer | `renderer` | The app sets `WEBKIT_DISABLE_DMABUF_RENDERER=1` unless the environment sets it. With the DMA-BUF renderer, WebKitGTK on Wayland with the NVIDIA driver presents 60 frames per second on a 144 Hz output; turning it off there is common practice for Tauri apps. This host is that worst case for Tauri: other platforms need no such switch. |
 | zgui | – | – | None. |
 
 ## Known defects that the apps do not work around
 
 - **Dioxus Native, vello-hybrid:** a CSS animation starts only after an input
   asks for a redraw. The live switch click is such an input.
+- **Tauri:** WebKit caps the height of an element at 33,554,432 px, so of
+  1,000,000 rows of 52 px only the first 645,000 can be reached.
 - **Vizia:** the first frame of the window is empty; the content follows in a
   later frame. The runner takes the startup time to the frame with the
   content (`content_ms`).

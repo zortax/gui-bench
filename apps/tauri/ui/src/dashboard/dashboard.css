@@ -1,0 +1,853 @@
+/* The app and the list of `apps/shared/dashboard.rs`. Measures follow the spec; the comments name the
+   window positions they give in a 1280x800 window. */
+
+:root {
+    color-scheme: light;
+}
+
+html,
+body,
+#root {
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background-color: #f3f4f6;
+}
+
+body {
+    font-family: sans-serif;
+    font-size: 14px;
+    color: #111827;
+}
+
+button,
+input {
+    font-family: sans-serif;
+    font-size: 14px;
+    margin: 0;
+}
+
+.dash {
+    display: flex;
+    width: 100%;
+    height: 100%;
+}
+
+/* ---- Sidebar ---- */
+
+.sidebar {
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    width: 240px;
+    height: 100%;
+    background-color: #111827;
+}
+
+/* The logo at (20, 18), the name at x 60, both centered on y 32. */
+.brand {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 12px;
+    height: 64px;
+    padding-left: 20px;
+}
+
+.brand__logo {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background-color: #6366f1;
+}
+
+.brand__name {
+    font-size: 16px;
+    font-weight: 600;
+    color: #ffffff;
+}
+
+/* Item i at y 80 + 44 i, x 12..228. */
+.nav {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    gap: 4px;
+    margin-top: 16px;
+    padding: 0 12px;
+}
+
+.nav__item {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 12px;
+    box-sizing: border-box;
+    width: 216px;
+    height: 40px;
+    padding: 0 12px 0 16px;
+    border: none;
+    border-radius: 8px;
+    background-color: #111827;
+    color: #d1d5db;
+    text-align: left;
+}
+
+.nav__item:hover {
+    background-color: #374151;
+}
+
+.nav__item.active,
+.nav__item.active:hover {
+    background-color: #1f2937;
+    color: #ffffff;
+}
+
+.nav__icon {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    background-color: #4b5563;
+}
+
+.nav__item.active .nav__icon {
+    background-color: #818cf8;
+}
+
+.nav__label {
+    flex: 1;
+}
+
+.badge {
+    height: 20px;
+    padding: 0 7px;
+    border-radius: 10px;
+    background-color: #ef4444;
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 20px;
+}
+
+/* The rule at y 720, the avatar at (20, 740), the texts at x 64. */
+.user {
+    display: flex;
+    flex-shrink: 0;
+    align-items: flex-start;
+    gap: 12px;
+    box-sizing: border-box;
+    height: 80px;
+    padding: 19px 20px 0;
+    border-top: 1px solid #1f2937;
+}
+
+.user__avatar {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 16px;
+    background-color: #f59e0b;
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.user__name {
+    color: #ffffff;
+    line-height: 18px;
+}
+
+.user__role {
+    color: #9ca3af;
+    font-size: 12px;
+    line-height: 16px;
+}
+
+/* ---- Main column ---- */
+
+.main {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+}
+
+/* The controls take y 14..50; the title is centered on y 32. */
+.topbar {
+    display: flex;
+    flex-shrink: 0;
+    align-items: flex-start;
+    box-sizing: border-box;
+    height: 64px;
+    padding: 14px 24px 0;
+    border-bottom: 1px solid #e5e7eb;
+    background-color: #ffffff;
+}
+
+.topbar__title {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 36px;
+    white-space: nowrap;
+}
+
+/* x 676..956. */
+.search {
+    flex-shrink: 0;
+    box-sizing: border-box;
+    width: 280px;
+    height: 36px;
+    padding: 0 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    background-color: #f9fafb;
+    color: #111827;
+}
+
+.search:focus {
+    outline: none;
+    border-color: #4f46e5;
+}
+
+.search::placeholder {
+    color: #9ca3af;
+}
+
+.button {
+    flex-shrink: 0;
+    box-sizing: border-box;
+    height: 36px;
+    padding: 0;
+    border-radius: 8px;
+    font-weight: 600;
+}
+
+.button--primary {
+    border: none;
+    background-color: #4f46e5;
+    color: #ffffff;
+    box-shadow: 0 1px 3px rgba(17, 24, 39, 0.25);
+}
+
+.button--secondary {
+    border: 1px solid #d1d5db;
+    background-color: #ffffff;
+    color: #111827;
+}
+
+/* The live switch, x 976..1016, y 21..43. */
+.live {
+    display: flex;
+    flex-shrink: 0;
+    margin: 7px 0 0 20px;
+}
+
+/* The place of the spinner: x 1040..1064, y 20..44. */
+.live__spinner {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    margin: 6px 0 0 24px;
+}
+
+.spinner {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    background-color: #4f46e5;
+    animation: spin 1000ms linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* x 1100..1196. */
+.export {
+    position: relative;
+    flex-shrink: 0;
+    margin: 0 24px 0 36px;
+}
+
+.export__button {
+    width: 96px;
+}
+
+/* The menu under the export button: x 1100..1260 from y 54, over the content. */
+.menu {
+    position: absolute;
+    top: 40px;
+    left: 0;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    width: 160px;
+    padding: 4px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background-color: #ffffff;
+    box-shadow: 0 4px 12px rgba(17, 24, 39, 0.10);
+}
+
+.menu__item {
+    flex-shrink: 0;
+    height: 36px;
+    padding: 0 12px;
+    border: none;
+    border-radius: 6px;
+    background-color: #ffffff;
+    color: #111827;
+    text-align: left;
+}
+
+.menu__item:hover {
+    background-color: #f3f4f6;
+}
+
+/* x 1220..1256. */
+.topbar__avatar {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 18px;
+    background-color: #f59e0b;
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+/* The scroll container: 24 px padding around the page. */
+.content {
+    flex: 1;
+    min-height: 0;
+    padding: 24px;
+    overflow-y: auto;
+    background-color: #f3f4f6;
+}
+
+/* A page: 16 px between the blocks. */
+.content__body {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.card {
+    box-sizing: border-box;
+    border-radius: 12px;
+    background-color: #ffffff;
+    box-shadow: 0 4px 12px rgba(17, 24, 39, 0.10);
+}
+
+.card__title {
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 24px;
+}
+
+/* ---- Metric cards: y 88..200 ---- */
+
+.kpis {
+    display: flex;
+    flex-shrink: 0;
+    gap: 16px;
+    height: 112px;
+}
+
+.kpi {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    flex: 1;
+    min-width: 0;
+    padding: 18px 20px 0;
+}
+
+.kpi__label {
+    color: #6b7280;
+    font-size: 13px;
+    line-height: 16px;
+}
+
+.kpi__value {
+    margin-top: 6px;
+    font-size: 24px;
+    font-weight: 700;
+    line-height: 28px;
+}
+
+.pill {
+    display: block;
+    height: 22px;
+    border-radius: 11px;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 22px;
+}
+
+.kpi__delta {
+    margin-top: 10px;
+    padding: 0 8px;
+}
+
+.up {
+    background-color: #dcfce7;
+    color: #166534;
+}
+
+.down {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+
+/* The bars stand on card y 92 and end 20 px inside the card. */
+.spark {
+    position: absolute;
+    right: 20px;
+    bottom: 20px;
+    display: flex;
+    align-items: flex-end;
+    gap: 3px;
+}
+
+.spark__bar {
+    width: 6px;
+    border-radius: 2px;
+    background-color: #c7d2fe;
+}
+
+/* ---- Second row: y 216..536 ---- */
+
+.row2 {
+    display: flex;
+    flex-shrink: 0;
+    gap: 16px;
+    height: 320px;
+}
+
+/* x 264..904. */
+.chart {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+    padding: 16px 20px 20px;
+}
+
+.chart__head {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: space-between;
+    height: 32px;
+}
+
+/* x 688..884, y 232..264. */
+.segments {
+    display: flex;
+    flex-shrink: 0;
+    padding: 2px;
+    border-radius: 8px;
+    background-color: #f3f4f6;
+}
+
+.segment {
+    width: 64px;
+    height: 28px;
+    padding: 0;
+    border: none;
+    border-radius: 6px;
+    background-color: #f3f4f6;
+    color: #6b7280;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.segment.selected {
+    background-color: #ffffff;
+    color: #111827;
+    box-shadow: 0 1px 3px rgba(17, 24, 39, 0.25);
+}
+
+/* x 284..884, y 288..516. */
+.plot {
+    position: relative;
+    flex-shrink: 0;
+    height: 228px;
+    margin-top: 24px;
+    overflow: hidden;
+}
+
+/* At y 300, 354, 408 and 462. */
+.grid {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background-color: #eef0f3;
+}
+
+.bars {
+    position: relative;
+    display: flex;
+    height: 100%;
+}
+
+.slot {
+    display: flex;
+    flex-shrink: 0;
+    align-items: flex-end;
+    gap: 2px;
+    box-sizing: border-box;
+    width: 25px;
+    height: 100%;
+    padding-left: 4px;
+}
+
+.slot--compare {
+    padding-left: 3px;
+}
+
+.bar {
+    width: 17px;
+    border-radius: 4px 4px 0 0;
+    background-color: #6366f1;
+}
+
+.slot--compare .bar {
+    width: 8px;
+}
+
+.bar--previous {
+    background-color: #c7d2fe;
+}
+
+/* x 920..1256. */
+.filters {
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    width: 336px;
+    padding: 20px;
+}
+
+/* Row k at y 272 + 32 k, the box at x 940, the label at x 968. */
+.checks {
+    margin-top: 12px;
+}
+
+.check {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 32px;
+}
+
+.check__box {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    accent-color: #4f46e5;
+}
+
+/* y 412..440. */
+.compare {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 28px;
+    margin-top: 12px;
+}
+
+/* x 1196..1236, y 415..437. */
+.switch {
+    position: relative;
+    flex-shrink: 0;
+    width: 40px;
+    height: 22px;
+    padding: 0;
+    border: none;
+    border-radius: 11px;
+    background-color: #d1d5db;
+}
+
+.switch.on {
+    background-color: #4f46e5;
+}
+
+.switch__knob {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 18px;
+    height: 18px;
+    border-radius: 9px;
+    background-color: #ffffff;
+    box-shadow: 0 1px 3px rgba(17, 24, 39, 0.25);
+}
+
+.switch.on .switch__knob {
+    left: 20px;
+}
+
+/* y 480..516: Reset x 1024..1124, Apply x 1136..1236. */
+.actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: auto;
+}
+
+.actions .button {
+    width: 100px;
+}
+
+/* ---- Orders: x 264..1256 from y 552 ---- */
+
+.orders {
+    flex-shrink: 0;
+}
+
+/* The columns start 24, 140, 440 and 600 px from the left; the amount ends at 968. */
+.orders__head,
+.order {
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+    padding: 0 24px;
+}
+
+.orders__head {
+    height: 44px;
+    border-bottom: 1px solid #e5e7eb;
+    border-radius: 12px 12px 0 0;
+    background-color: #f9fafb;
+    color: #6b7280;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.order {
+    height: 52px;
+    border-bottom: 1px solid #f3f4f6;
+    background-color: #ffffff;
+}
+
+.order:last-child {
+    border-radius: 0 0 12px 12px;
+}
+
+.order:hover {
+    background-color: #eef2ff;
+}
+
+.col-order {
+    flex-shrink: 0;
+    width: 116px;
+}
+
+.col-customer {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 12px;
+    width: 300px;
+}
+
+.col-status {
+    display: flex;
+    flex-shrink: 0;
+    width: 160px;
+}
+
+.col-progress {
+    flex: 1;
+    min-width: 0;
+}
+
+.col-amount {
+    flex-shrink: 0;
+    width: 120px;
+    text-align: right;
+}
+
+/* The amount title sorts the orders; it fills the 120 px at the end of its column. */
+.sort {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: flex-end;
+    width: 120px;
+    height: 100%;
+    padding: 0;
+    border: none;
+    background-color: #f9fafb;
+    color: #6b7280;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.sort.sorted {
+    color: #4f46e5;
+}
+
+.order__number {
+    color: #6b7280;
+}
+
+.avatar {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 14px;
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.status {
+    padding: 0 10px;
+}
+
+.progress {
+    width: 120px;
+    height: 6px;
+    border-radius: 3px;
+    background-color: #e5e7eb;
+}
+
+.progress__fill {
+    height: 6px;
+    border-radius: 3px;
+    background-color: #4f46e5;
+}
+
+.order__amount {
+    font-weight: 600;
+}
+
+/* ---- Messages ---- */
+
+.feed {
+    gap: 12px;
+}
+
+/* The avatar at the top left, the texts 68 px from the left of the card. */
+.message {
+    display: flex;
+    flex-shrink: 0;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 16px 20px;
+}
+
+.message__avatar {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 18px;
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.message__text {
+    flex: 1;
+    min-width: 0;
+}
+
+.message__head {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    line-height: 20px;
+}
+
+.message__author {
+    font-weight: 600;
+}
+
+.message__time {
+    color: #6b7280;
+    font-size: 13px;
+}
+
+.message__body {
+    line-height: 20px;
+}
+
+/* ---- Empty page: the label 72 px under the top bar ---- */
+
+.empty {
+    align-items: center;
+}
+
+.empty__label {
+    margin-top: 48px;
+    color: #6b7280;
+}
+
+/* ---- List scenario: the header at the top, the rows from y 44 ---- */
+
+/* The scroll container of the virtual list holds a box as tall as every row together, and the
+   rows that exist lie in it at their offsets. */
+
+.list {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    background-color: #ffffff;
+}
+
+.list .orders__head {
+    flex-shrink: 0;
+    border-radius: 0;
+}
+
+.list__rows {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+.list__sizer {
+    position: relative;
+    width: 100%;
+}
+
+.list__row {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+}
+
+.list .order:last-child {
+    border-radius: 0;
+}

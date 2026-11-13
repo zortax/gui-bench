@@ -151,6 +151,10 @@ fn scrolls(run: &mut CellRun, pointer: (i32, i32), roi: serde_json::Value) {
             }
         });
     }
+    // The later steps probe and show the top of the content.
+    if let Err(e) = steps::scroll_to_top(run, pointer) {
+        eprintln!("    the content did not scroll back to the top: {e:#}");
+    }
 }
 
 /// The page switches and the messages page: the click that mounts the messages, the click that

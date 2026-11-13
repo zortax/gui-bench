@@ -2,7 +2,7 @@
 default: build run plots
 
 # The framework apps under `apps/`.
-apps := "zgui gpui-kit gpui-kit-fast freya freya-056a5b4 vizia floem iced egui dioxus"
+apps := "zgui gpui-kit gpui-kit-fast freya freya-056a5b4 vizia floem iced egui dioxus tauri"
 
 # Memory limits: the runner and the apps it launches, and one app build. Each runs in its own
 # systemd scope without swap, so a runaway process is killed there instead of stalling the host.
@@ -16,8 +16,10 @@ build:
     just build-editions
     cd runner && {{limit}}{{build_mem}} cargo build --release
 
-# Build one framework app, such as `just build-app iced`.
+# Build one framework app, such as `just build-app iced`. An app with a web page in `ui/` (the
+# Tauri app) builds the page first, since the binary embeds it.
 build-app name:
+    cd apps/{{name}} && if [ -f ui/package.json ]; then (cd ui && npm ci && npm run build); fi
     cd apps/{{name}} && {{limit}}{{build_mem}} cargo build --release
 
 # Build the editions that are feature builds of an app: GPUI and iced with their opt-in caching,

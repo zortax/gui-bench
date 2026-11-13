@@ -1,4 +1,6 @@
-//! The frameworks under test: each one is an app in `apps/<name>` with its own build. An app
+//! The frameworks under test: each one is an app in `apps/<name>` with its own build. `tauri` is
+//! the one app that is no native Rust UI: a Tauri shell around a SolidJS page in the system web
+//! view, as a reference for the web stack. An app
 //! shows one scenario per run, which the command line names. An edition of a framework is another
 //! build of the same sources. `gpui-kit-tuned` and `iced-tuned` build their app with the `tuned`
 //! feature into `target/tuned`: the app then opts into the caching that the framework offers
@@ -72,6 +74,10 @@ const FLOEM: &[(&str, &str)] = &[
         "a repeating animation stops after one pass: the app turns the square from the frame callback and paints it on a canvas",
     ),
 ];
+const TAURI: &[(&str, &str)] = &[(
+    "renderer",
+    "the app turns the DMA-BUF renderer of WebKitGTK off, as Tauri apps do on Wayland with NVIDIA",
+)];
 const DIOXUS: &[(&str, &str)] = &[(
     "list",
     "no virtual list: the app renders the rows of the viewport from the scroll offset",
@@ -195,6 +201,15 @@ pub const ALL: &[Framework] = &[
         marks: false,
         default: false,
         flags: DIOXUS,
+    },
+    Framework {
+        name: "tauri",
+        app: "tauri",
+        package: "tauri",
+        build: "",
+        marks: false,
+        default: true,
+        flags: TAURI,
     },
 ];
 

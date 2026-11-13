@@ -1,0 +1,19 @@
+[package]
+name = "tauri-bench"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+publish = false
+
+# Its own workspace, so the Tauri stack resolves apart from every other app.
+[workspace]
+
+[dependencies]
+serde_json = "1.0.154"
+tauri = { version = "2.12.5", features = ["custom-protocol"] }
+
+[build-dependencies]
+tauri-build = "2.7.4"
+
+[profile.release]
+debug = 1

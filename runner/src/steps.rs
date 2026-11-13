@@ -26,6 +26,9 @@ pub const FLING_VELOCITY: f64 = 8000.0;
 pub const FLING_TRAVEL: f64 = 2600.0;
 /// The velocity of the wheel scroll in logical pixels per second: about 13 detents a second.
 pub const WHEEL_VELOCITY: f64 = 200.0;
+/// The start velocity of the fling that brings the content back to its top, in logical pixels
+/// per second: far more than any measured scroll moves it.
+const TOP_VELOCITY: f64 = 60_000.0;
 /// The scroll events of a finger per refresh, so every frame can consume the same scroll.
 const EVENTS_PER_REFRESH: f64 = 4.0;
 /// How long the idle measurement lasts.
@@ -264,6 +267,26 @@ pub fn click_once(run: &CellRun, at: (i32, i32), settles: bool) -> anyhow::Resul
         .blocking_run(builder.build()?)?
         .blocking_wait()?;
     anyhow::ensure!(result.ok, "the click failed: {:?}", result.error);
+    Ok(())
+}
+
+/// Flings the content under `pointer` back to its top and waits until the window settles. The
+/// scrolls go down and up by the same input, but a framework that scales scroll input reaches
+/// the end of the content on the way down, so it does not come back to the top by itself.
+pub fn scroll_to_top(run: &CellRun, pointer: (i32, i32)) -> anyhow::Result<()> {
+    let mut fling = Fling::new(-TOP_VELOCITY);
+    fling.at = Some(Position::output(f64::from(pointer.0), f64::from(pointer.1)));
+    fling.duration = ms(400);
+    let scenario = Scenario::builder("to-top")
+        .fling(fling)
+        .settle(ms(300))
+        .build()?;
+    let result = run.session.blocking_run(scenario)?.blocking_wait()?;
+    anyhow::ensure!(
+        result.ok,
+        "the scroll to the top failed: {:?}",
+        result.error
+    );
     Ok(())
 }
 

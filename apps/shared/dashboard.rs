@@ -518,11 +518,13 @@ impl Status {
     }
 }
 
-const FIRST_NAMES: [&str; 16] = [
+/// The first names of the customers and authors.
+pub const FIRST_NAMES: [&str; 16] = [
     "Olivia", "Liam", "Emma", "Noah", "Ava", "Elias", "Mia", "Lucas", "Sofia", "Mateo", "Clara",
     "Jonas", "Lea", "Felix", "Hanna", "Theo",
 ];
-const LAST_NAMES: [&str; 13] = [
+/// The last names of the customers and authors.
+pub const LAST_NAMES: [&str; 13] = [
     "Schmidt", "Garcia", "Nguyen", "Okafor", "Rossi", "Kowalski", "Silva", "Tanaka", "Dubois",
     "Moreau", "Larsen", "Novak", "Petrov",
 ];
@@ -617,7 +619,8 @@ pub fn arranged(mut orders: Vec<Order>, sorted: bool) -> Vec<Order> {
     orders
 }
 
-const SENTENCES: [&str; 12] = [
+/// The sentences of the message bodies.
+pub const SENTENCES: [&str; 12] = [
     "The export for last quarter is ready and I attached the summary to the ticket.",
     "Could you take another look at the numbers for the northern region before the call?",
     "We shipped the fix this morning.",
