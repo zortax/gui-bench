@@ -25,7 +25,7 @@ pub fn GapCards(overview: Arc<RunOverview>, source: Source, scope: Scope) -> imp
     let profiles = Resource::new(
         move || (run.clone(), version, scope.size.get(), scope.hz.get()),
         move |(run, _, size, hz)| async move {
-            let (Some((rows, updates)), Some(hz)) = (size, hz) else {
+            let (Some((rows, _)), Some(hz)) = (size, hz) else {
                 return Ok(Vec::new());
             };
             frame_profiles(
@@ -34,7 +34,6 @@ pub fn GapCards(overview: Arc<RunOverview>, source: Source, scope: Scope) -> imp
                 source.measurement.to_owned(),
                 hz,
                 rows,
-                updates.unwrap_or(0),
             )
             .await
         },
@@ -119,7 +118,7 @@ fn LanesCard(
             .into_iter()
             .map(|(c, p)| LaneRow {
                 key: c.id.to_string(),
-                label: c.key.label(),
+                label: c.key.framework.clone(),
                 group: c.key.framework.clone(),
                 ink: crate::palette::ink(&c.key.framework),
                 cell: Some(c.id),
@@ -207,7 +206,7 @@ fn ClassesCard(
         shown(&ov, &pr, &source, &explorer.prefs.snapshot())
             .iter()
             .filter(|(_, p)| gap_breakdown(&p.lanes).is_none_or(|b| !timed(&b)))
-            .map(|(c, _)| c.key.label())
+            .map(|(c, _)| c.key.framework.clone())
             .collect::<Vec<_>>()
     });
     let note = Signal::derive(move || {
@@ -236,7 +235,12 @@ fn ClassesCard(
             .collect();
         let labels = rows
             .iter()
-            .map(|(c, _)| (c.key.label(), crate::palette::ink(&c.key.framework)))
+            .map(|(c, _)| {
+                (
+                    c.key.framework.clone(),
+                    crate::palette::ink(&c.key.framework),
+                )
+            })
             .collect();
         let mut model = XyModel::new(
             Axis::value(
@@ -274,7 +278,7 @@ fn ClassesCard(
                     color: format!("var(--late-{k})"),
                     group: c.key.framework.clone(),
                     tip: vec![
-                        ("framework".to_owned(), c.key.label()),
+                        ("framework".to_owned(), c.key.framework.clone()),
                         ("class".to_owned(), GAP_CLASSES[k].name.to_owned()),
                         ("share".to_owned(), format!("{}%", short(w))),
                         ("frames".to_owned(), b.frames[k].to_string()),

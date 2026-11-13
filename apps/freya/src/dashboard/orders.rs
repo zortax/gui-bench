@@ -6,8 +6,7 @@ use std::rc::Rc;
 
 use freya::prelude::*;
 
-use super::{avatar, card, pill, spec, text};
-use crate::page::{bottom_border, color};
+use super::{avatar, bottom_border, card, color, pill, spec, text};
 
 /// The column boxes from the left of the card: the order number, the customer, the status and
 /// the progress bar; the amount takes the rest and ends `COL_ORDER` inside the card.
@@ -18,37 +17,40 @@ const COLUMNS: [f32; 4] = [
     spec::PROGRESS_WIDTH,
 ];
 
-/// The orders card. It reads the status filter and the search, so a change renders the list,
-/// and the keyed diff keeps every row component that stays.
+/// The orders card. It reads the status filter, the search and the sorting, so a change renders
+/// the list, and the keyed diff keeps every row component that stays.
 #[derive(PartialEq)]
 pub struct Orders {
-    pub orders: Rc<Vec<Rc<spec::Order>>>,
+    pub orders: Rc<Vec<spec::Order>>,
     pub shown: State<[bool; 4]>,
     pub search: State<String>,
+    pub sorted: State<bool>,
 }
 
 impl Component for Orders {
     fn render(&self) -> impl IntoElement {
         let shown = *self.shown.read();
         let search = self.search.read();
-        let rows: Vec<Element> = self
+        let passing = self
             .orders
             .iter()
             .filter(|order| spec::visible(order, &shown, &search))
-            .map(|order| {
-                OrderRow {
-                    order: order.clone(),
-                    key: DiffKey::None,
-                }
-                .key(order.number)
-                .into_element()
-            })
+            .cloned()
             .collect();
+        let rows = spec::arranged(passing, *self.sorted.read())
+            .into_iter()
+            .map(|order| {
+                let number = order.number;
+                OrderRow::new(order).key(number).into_element()
+            });
 
         card()
             .width(Size::fill())
             .overflow(Overflow::Clip)
-            .child(header())
+            .child(OrdersHead {
+                sorted: self.sorted,
+                rounded: true,
+            })
             .children(rows)
     }
 }
@@ -76,29 +78,61 @@ fn columns(height: f32, cells: [Element; 5]) -> Rect {
         )
 }
 
-/// Returns the header with the column titles, rounded at the top like the card.
-fn header() -> Rect {
-    let [order, customer, status, progress, amount] =
-        spec::COLUMNS.map(|title| text(title, 12.0, FontWeight::SEMI_BOLD, spec::MUTED).into());
-    columns(
-        spec::TABLE_HEADER_HEIGHT,
-        [order, customer, status, progress, amount],
-    )
-    .background(color(spec::TABLE_HEADER_BG))
-    .corner_radius(CornerRadius::new(
-        spec::CARD_RADIUS,
-        spec::CARD_RADIUS,
-        0.0,
-        0.0,
-    ))
-    .border(bottom_border(spec::RULE))
+/// The header with the column titles, rounded at the top like the card when `rounded`. A press
+/// on the amount title flips the sorting; the title is `PRIMARY` while the orders are sorted.
+#[derive(PartialEq)]
+pub struct OrdersHead {
+    pub sorted: State<bool>,
+    pub rounded: bool,
+}
+
+impl Component for OrdersHead {
+    fn render(&self) -> impl IntoElement {
+        let mut sorted = self.sorted;
+        let title = |column: usize, fill: u32| {
+            text(spec::COLUMNS[column], 12.0, FontWeight::SEMI_BOLD, fill)
+        };
+        let amount_fill = if sorted() { spec::PRIMARY } else { spec::MUTED };
+        let amount = rect()
+            .width(Size::px(spec::SORT_WIDTH))
+            .height(Size::fill())
+            .main_align(Alignment::Center)
+            .cross_align(Alignment::End)
+            .on_press(move |_| sorted.toggle())
+            .child(title(spec::SORT_COLUMN, amount_fill));
+        let radius = if self.rounded { spec::CARD_RADIUS } else { 0.0 };
+
+        columns(
+            spec::TABLE_HEADER_HEIGHT,
+            [
+                title(0, spec::MUTED).into(),
+                title(1, spec::MUTED).into(),
+                title(2, spec::MUTED).into(),
+                title(3, spec::MUTED).into(),
+                amount.into(),
+            ],
+        )
+        .background(color(spec::TABLE_HEADER_BG))
+        .corner_radius(CornerRadius::new(radius, radius, 0.0, 0.0))
+        .border(bottom_border(spec::RULE))
+    }
 }
 
 /// One order row. Its props are the order, so a list render keeps it as it is.
 #[derive(PartialEq)]
-struct OrderRow {
-    order: Rc<spec::Order>,
+pub struct OrderRow {
+    order: spec::Order,
     key: DiffKey,
+}
+
+impl OrderRow {
+    /// Returns the row of `order`.
+    pub fn new(order: spec::Order) -> Self {
+        Self {
+            order,
+            key: DiffKey::None,
+        }
+    }
 }
 
 impl KeyExt for OrderRow {

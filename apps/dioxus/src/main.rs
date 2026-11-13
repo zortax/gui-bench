@@ -7,32 +7,19 @@
 #[path = "../../shared/cli.rs"]
 mod cli;
 mod dashboard;
-mod page;
-mod rows;
-mod search;
-#[path = "../../shared/spec.rs"]
-mod spec;
-mod spinner;
-mod table;
-mod virtual_rows;
 
 use dioxus::prelude::*;
 use dioxus_native::winit::platform::wayland::WindowAttributesWayland;
 use dioxus_native::{Config, LogicalSize, WindowAttributes};
 
-use crate::cli::{Scenario, Variant};
-use crate::dashboard::Dashboard;
-use crate::rows::Rows;
-use crate::search::Search;
-use crate::spinner::Spinner;
-use crate::table::{CoarseTable, FineTable};
-use crate::virtual_rows::VirtualRows;
+use crate::cli::Scenario;
+use crate::dashboard::{Dashboard, OrderList, spec};
 
 const NAME: &str = "dioxus-bench";
 const APP_ID: &str = "gui-bench.dioxus";
 
 fn main() {
-    let scenario = cli::from_env(NAME, &[Variant::Fine, Variant::Coarse, Variant::Shared]);
+    let scenario = cli::from_env(NAME);
     let window = WindowAttributes::default()
         .with_title(scenario.title())
         .with_surface_size(LogicalSize::new(spec::WINDOW.0, spec::WINDOW.1))
@@ -53,20 +40,7 @@ fn main() {
 #[component]
 fn App(scenario: Scenario) -> Element {
     match scenario {
-        Scenario::Rows { count } => rsx! { Rows { count } },
-        Scenario::Table {
-            count,
-            variant: Variant::Coarse,
-            ticker,
-        } => rsx! { CoarseTable { count, ticker } },
-        Scenario::Table {
-            count,
-            variant,
-            ticker,
-        } => rsx! { FineTable { count, ticker, shared: variant == Variant::Shared } },
-        Scenario::Spinner { count } => rsx! { Spinner { count } },
-        Scenario::Search { count, filter } => rsx! { Search { count, filter } },
-        Scenario::Virtual { count } => rsx! { VirtualRows { count } },
-        Scenario::Dashboard { count } => rsx! { Dashboard { count } },
+        Scenario::App { count } => rsx! { Dashboard { count } },
+        Scenario::List { count } => rsx! { OrderList { count } },
     }
 }

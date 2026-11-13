@@ -1,8 +1,9 @@
-//! The overview of a run: its provenance, its health, and a scorecard of every framework over
-//! the key metrics of each scenario.
+//! The overview of a run: how far every framework scales within a frame budget, its provenance,
+//! its health, and its builds with the parts built by hand.
 
+mod builds;
+mod capacity;
 mod health;
-mod scorecard;
 mod view;
 
 pub use view::OverviewView;

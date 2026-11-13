@@ -1,4 +1,4 @@
-//! The detail of one cell: its outcome, startup, and the checks, iterations and parameters of
+//! The detail of one cell: its outcome, launches, and the checks, iterations and parameters of
 //! every bench report; and the files a cell may show.
 
 use std::path::PathBuf;
@@ -13,18 +13,40 @@ use crate::error::{DataError, read_json};
 use crate::report::{CellOutcome, Environment, Startup};
 use crate::store::RunData;
 
+/// The screenshots a cell may hold, by file stem: after startup, with the menu open, with the
+/// live updates on, and of the messages page.
+pub const SCREENSHOTS: [&str; 4] = [
+    "screenshot",
+    "screenshot-menu",
+    "screenshot-live",
+    "screenshot-messages",
+];
+
 /// A file of a cell that the explorer serves as is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CellFile {
-    Screenshot,
+    /// A screenshot, by its place in [`SCREENSHOTS`].
+    Screenshot(usize),
     Log,
 }
 
 impl CellFile {
-    fn name(self) -> &'static str {
+    /// Returns the file of a name such as `screenshot-menu.png` or `app.log`.
+    pub fn parse(name: &str) -> Option<Self> {
+        if name == "app.log" {
+            return Some(Self::Log);
+        }
+        let stem = name.strip_suffix(".png")?;
+        SCREENSHOTS
+            .iter()
+            .position(|s| *s == stem)
+            .map(Self::Screenshot)
+    }
+
+    fn name(self) -> String {
         match self {
-            Self::Screenshot => "screenshot.png",
-            Self::Log => "app.log",
+            Self::Screenshot(i) => format!("{}.png", SCREENSHOTS[i]),
+            Self::Log => "app.log".to_owned(),
         }
     }
 }
@@ -35,7 +57,7 @@ impl RunData {
         let path = self.cell_dir(id)?.join(file.name());
         path.is_file()
             .then_some(path)
-            .ok_or_else(|| DataError::NoReport(file.name().to_owned()))
+            .ok_or_else(|| DataError::NoReport(file.name()))
     }
 
     /// Returns the detail of a cell.
@@ -43,7 +65,7 @@ impl RunData {
         let cell = self.cell(id)?.clone();
         let dir = self.cell_dir(id)?;
         let outcome: Option<CellOutcome> = read_json(&dir.join("cell.json")).ok();
-        let startup: Option<Startup> = read_json(&dir.join("startup.json")).ok();
+        let startup: Startup = read_json(&dir.join("startup.json")).unwrap_or_default();
         let mut measurements = Vec::new();
         let mut environment = None;
         for name in cell.done.iter().chain(cell.errors.iter().map(|(n, _)| n)) {
@@ -63,11 +85,24 @@ impl RunData {
         }
         Ok(CellDetail {
             args: outcome.map(|o| o.args).unwrap_or_default(),
-            startup: startup.map(|s| s.to_api()),
+            launches: startup.launches.iter().map(|l| l.to_api()).collect(),
             measurements,
             environment,
-            has_screenshot: dir.join("screenshot.png").is_file(),
+            screenshots: SCREENSHOTS
+                .iter()
+                .filter(|s| dir.join(format!("{s}.png")).is_file())
+                .map(|s| (*s).to_owned())
+                .collect(),
             has_log: dir.join("app.log").is_file(),
+            flags: self
+                .overview
+                .provenance
+                .builds
+                .iter()
+                .filter(|b| b.framework == cell.key.framework)
+                .flat_map(|b| &b.flags)
+                .map(|f| (f.part.clone(), f.note.clone()))
+                .collect(),
             cell,
         })
     }

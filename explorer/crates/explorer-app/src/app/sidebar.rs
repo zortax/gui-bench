@@ -1,4 +1,4 @@
-//! The sidebar: the framework, variant and refresh rate filters, and the defaults of every
+//! The sidebar: the framework and refresh rate filters, and the defaults of every
 //! chart (scale, uncertainty, outlier focus, valid only, baseline).
 
 use std::sync::Arc;
@@ -50,19 +50,13 @@ fn Filters(overview: Arc<RunOverview>) -> impl IntoView {
     let mut frameworks = overview.frameworks();
     palette::sort(&mut frameworks);
     let all = frameworks.clone();
-    let mut variants: Vec<String> = Vec::new();
     let mut rates: Vec<f64> = Vec::new();
     for c in &overview.cells {
-        if c.key.variant != "default" && !variants.contains(&c.key.variant) {
-            variants.push(c.key.variant.clone());
-        }
         if !rates.contains(&c.key.hz) {
             rates.push(c.key.hz);
         }
     }
-    variants.sort_by_key(|v| palette::variant_rank(v));
     rates.sort_by(f64::total_cmp);
-    let all_variants = variants.clone();
     let all_shown = {
         let all = all.clone();
         move || prefs.hidden.get().is_empty() || all.iter().all(|f| !prefs.hidden.get().contains(f))
@@ -115,37 +109,9 @@ fn Filters(overview: Arc<RunOverview>) -> impl IntoView {
                     .collect_view()}
             </div>
         </section>
-        {(!variants.is_empty()).then(|| view! {
-            <section class="gx-side__group">
-                <div class="gx-side__title">"Variants" <span class="gx-side__hint">"table, ticker"</span></div>
-                <div class="gx-chips">
-                    {variants.into_iter().map(|v| {
-                        let all = all_variants.clone();
-                        let name = v.clone();
-                        let on = Signal::derive({
-                            let v = v.clone();
-                            move || { let s = prefs.variants.get(); s.is_empty() || s.contains(&v) }
-                        });
-                        view! {
-                            <Chip
-                                label=palette::variant_name(&v).to_owned()
-                                on=on
-                                on_toggle=Callback::new(move |_| {
-                                    let mut shown = prefs.variants.get_untracked();
-                                    if shown.is_empty() { shown = all.clone(); }
-                                    let next = toggle_in(&shown, &name);
-                                    let value = if next.len() == all.len() || next.is_empty() { None } else { join(next) };
-                                    explorer.query.set("var", value)
-                                })
-                            />
-                        }
-                    }).collect_view()}
-                </div>
-            </section>
-        })}
         {(rates.len() > 1).then(|| view! {
             <section class="gx-side__group">
-                <div class="gx-side__title">"Refresh rate"</div>
+                <div class="gx-side__title">"Refresh rate" <span class="gx-side__hint">"the slower one holds pacing steps only"</span></div>
                 <div class="gx-chips">
                     {rates.iter().map(|hz| {
                         let key = format!("{hz}");

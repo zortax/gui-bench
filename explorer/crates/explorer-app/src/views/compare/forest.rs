@@ -139,9 +139,5 @@ pub fn factor(v: f64) -> f64 {
 }
 
 fn size(k: &CellKey) -> String {
-    let rows = explorer_core::units::thousands(f64::from(k.rows));
-    match k.updates {
-        Some(u) => format!("{rows}×{u}"),
-        None => rows,
-    }
+    explorer_core::units::compact(k.size())
 }

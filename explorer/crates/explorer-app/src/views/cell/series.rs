@@ -1,14 +1,14 @@
-//! The frame, typing, resize and phase series of a measurement: scroll steps and frame
-//! intervals over time, delivered frames per second, key latency over the typing, configure to
+//! The frame, resize and phase series of a measurement: scroll steps and frame
+//! intervals over time, delivered frames per second, configure to
 //! present per configure, and the durations of zgui's app phases.
 
-use explorer_core::api::{FramesDetail, PhasesDetail, ResizeDetail, TypingDetail};
+use explorer_core::api::{FramesDetail, PhasesDetail, ResizeDetail};
 use explorer_core::stats::{quantile, sorted};
 use explorer_core::units::short;
 use leptos::prelude::*;
 
 use super::latency::iteration_color;
-use crate::api::{frames_detail, phases_detail, resize_detail, typing_detail};
+use crate::api::{frames_detail, phases_detail, resize_detail};
 use crate::chart::{
     Axis, ChartCard, DotModel, DotPlot, DotRow, Legend, LegendItem, Pt, Rule, Series, XyModel,
     XyPlot,
@@ -206,86 +206,6 @@ fn Frames(d: FramesDetail) -> impl IntoView {
                 </table>
             </ChartCard>
         })}
-    }
-}
-
-/// The typing charts of a measurement.
-#[component]
-pub fn TypingCharts(cell: u32, measurement: String) -> impl IntoView {
-    let run = use_explorer().run.get_untracked();
-    let detail = Resource::new(
-        move || (run.clone(), cell, measurement.clone()),
-        |(run, cell, m)| typing_detail(run, cell, m),
-    );
-    view! {
-        <Suspense fallback=|| view! { <ChartSkeleton/> }>
-            {move || Suspend::new(async move {
-                match detail.await {
-                    Ok(d) => view! { <Typing d=d/> }.into_any(),
-                    Err(e) => view! { <ErrorCard title="The keys do not load" error=e.to_string()/> }.into_any(),
-                }
-            })}
-        </Suspense>
-    }
-}
-
-#[component]
-fn Typing(d: TypingDetail) -> impl IntoView {
-    let mut m = XyModel::new(
-        Axis::linear("time from the first key", "ms"),
-        Axis::value("key to photon", "ms"),
-    );
-    m.height = 220.0;
-    let mut legend = Vec::new();
-    for (i, it) in d.iterations.iter().enumerate() {
-        let color = iteration_color(i);
-        let mut s = series(
-            format!("t{i}"),
-            format!("iteration {}", it.index),
-            color.clone(),
-        );
-        s.radius = 2.6;
-        s.points = it
-            .keys
-            .iter()
-            .filter_map(|k| {
-                let mut p = Pt::new(k.t_ms, k.latency_ms?);
-                p.tip = vec![
-                    ("key".into(), k.key.clone()),
-                    (
-                        "handling".into(),
-                        k.handling_ms
-                            .map_or("–".into(), |v| format!("{} ms", short(v))),
-                    ),
-                    ("backlog".into(), k.backlog.to_string()),
-                ];
-                Some(p)
-            })
-            .collect();
-        let slope = it
-            .latency_slope_ms_per_key
-            .map(|v| format!(" · {} ms/key", short(v)))
-            .unwrap_or_default();
-        let mut item = LegendItem::encoding(
-            format!("iteration {}{slope}", it.index),
-            Marker::Circle,
-            Some(String::new()),
-            false,
-        );
-        item.color = color;
-        legend.push(item);
-        m.series.push(s);
-    }
-    m.rules.push(Rule {
-        horizontal: true,
-        value: d.refresh_ms,
-        label: "one refresh".into(),
-    });
-    view! {
-        <ChartCard title="Keys" note="Key to photon of every typed key at 120 wpm; a rising line means the app falls behind">
-            <Legend items=legend/>
-            <XyPlot model=m/>
-        </ChartCard>
     }
 }
 

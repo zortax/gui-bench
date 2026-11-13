@@ -1,5 +1,6 @@
-//! The health of a run: cells that measured everything, failed or skipped measurements, and
-//! the reports that fail validity checks, per scenario and framework.
+//! The health of a run: cells that measured everything, cells that did not run or stopped over
+//! the response budget, failed or skipped measurements, and the reports that fail validity
+//! checks per framework.
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -22,6 +23,13 @@ pub fn Health(overview: Arc<RunOverview>) -> impl IntoView {
         .cloned()
         .collect();
     let skipped = cells.iter().map(|c| c.skipped.len()).sum::<usize>();
+    let stopped: Vec<_> = cells
+        .iter()
+        .filter(|c| !c.ran() || c.over_budget)
+        .cloned()
+        .collect();
+    let not_run = stopped.iter().filter(|c| !c.ran()).count();
+    let missed = cells.iter().filter(|c| c.missed_refreshes).count();
     let mut by_fw: BTreeMap<String, (u32, u32, u32)> = BTreeMap::new();
     for c in cells {
         let slot = by_fw.entry(c.key.framework.clone()).or_default();
@@ -40,7 +48,12 @@ pub fn Health(overview: Arc<RunOverview>) -> impl IntoView {
         <section class="gx-card gx-health">
             <h3 class="gx-chart__title">"Health"</h3>
             <p class="gx-chart__note">
-                {format!("{} cells · {} with a failed measurement · {skipped} measurements skipped", cells.len(), failed.len())}
+                {format!(
+                    "{} cells · {not_run} not run · {} over budget · {missed} missed over 1 % of the refreshes · {} with a failed measurement · {skipped} measurements skipped",
+                    cells.len(),
+                    stopped.len() - not_run,
+                    failed.len()
+                )}
             </p>
             <table class="gx-table">
                 <thead><tr><th>"framework"</th><th>"reports"</th><th>"pass"</th><th>"warn"</th><th>"fail"</th><th class="gx-table__bar"></th></tr></thead>
@@ -68,6 +81,26 @@ pub fn Health(overview: Arc<RunOverview>) -> impl IntoView {
                     }).collect_view()}
                 </tbody>
             </table>
+            {(!stopped.is_empty()).then(|| view! {
+                <h4 class="gx-health__sub">"Over the response budget"</h4>
+                <ul class="gx-health__fails">
+                    {stopped.into_iter().map(|c| {
+                        let id = c.id;
+                        let why = match &c.stopped {
+                            Some(why) => format!("not run: {why}"),
+                            None => "a response took over a second or never came, so the later steps did not run".to_owned(),
+                        };
+                        view! {
+                            <li>
+                                <button type="button" class="gx-btn gx-btn--link" on:click=move |_| explorer.query.set("cell", Some(id.to_string()))>
+                                    {c.dir.clone()}
+                                </button>
+                                <div class="gx-health__err"><StatusDot status=CheckStatus::Warn/>" "{why}</div>
+                            </li>
+                        }
+                    }).collect_view()}
+                </ul>
+            })}
             {(!failed.is_empty()).then(|| view! {
                 <h4 class="gx-health__sub">"Failed measurements"</h4>
                 <ul class="gx-health__fails">

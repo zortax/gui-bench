@@ -1,4 +1,4 @@
-/* The dashboard of `apps/shared/dashboard.rs`. Measures follow the spec; the comments name the
+/* The app and the list of `apps/shared/dashboard.rs`. Measures follow the spec; the comments name the
    window positions they give in a 1280x800 window. */
 
 :root {
@@ -205,7 +205,6 @@ input {
     flex-shrink: 0;
     width: 280px;
     height: 36px;
-    margin-right: 144px;
 }
 
 .search__input {
@@ -255,10 +254,78 @@ input {
     color: #111827;
 }
 
+/* The live switch, x 976..1016, y 21..43. */
+.live {
+    flex-shrink: 0;
+    margin: 7px 0 0 20px;
+}
+
+/* x 1040..1064, y 20..44, shown while live is on. */
+.spinner {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    margin: 6px 0 0 24px;
+    border-radius: 6px;
+    background-color: #4f46e5;
+    visibility: hidden;
+}
+
+.spinner.spinning {
+    visibility: visible;
+    animation: spin 1000ms linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
 /* x 1100..1196. */
 .export {
+    position: relative;
+    flex-shrink: 0;
+    margin: 0 24px 0 36px;
+}
+
+.export__button {
     width: 96px;
-    margin-right: 24px;
+}
+
+/* The menu under the export button: x 1100..1260 from y 54, over the content. */
+.menu {
+    position: absolute;
+    top: 40px;
+    left: 0;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    width: 160px;
+    padding: 4px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background-color: #ffffff;
+    box-shadow: 0 4px 12px rgba(17, 24, 39, 0.10);
+}
+
+.menu__item {
+    flex-shrink: 0;
+    height: 36px;
+    padding: 0 12px;
+    border: none;
+    border-radius: 6px;
+    background-color: #ffffff;
+    color: #111827;
+    text-align: left;
+}
+
+.menu__item:hover {
+    background-color: #f3f4f6;
 }
 
 /* x 1220..1256. */
@@ -276,16 +343,20 @@ input {
     font-weight: 600;
 }
 
-/* The scroll container: 24 px padding, 16 px between the blocks. */
+/* The scroll container: 24 px padding around the page. */
 .content {
-    display: flex;
-    flex-direction: column;
     flex: 1;
     min-height: 0;
-    gap: 16px;
     padding: 24px;
     overflow-y: auto;
     background-color: #f3f4f6;
+}
+
+/* A page: 16 px between the blocks. */
+.content__body {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
 }
 
 .card {
@@ -631,6 +702,26 @@ input {
     text-align: right;
 }
 
+/* The amount title sorts the orders; it fills the 120 px at the end of its column. */
+.sort {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: flex-end;
+    width: 120px;
+    height: 100%;
+    padding: 0;
+    border: none;
+    background-color: #f9fafb;
+    color: #6b7280;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.sort.sorted {
+    color: #4f46e5;
+}
+
 .order__number {
     color: #6b7280;
 }
@@ -667,4 +758,93 @@ input {
 
 .order__amount {
     font-weight: 600;
+}
+
+/* ---- Messages ---- */
+
+.feed {
+    gap: 12px;
+}
+
+/* The avatar at the top left, the texts 68 px from the left of the card. */
+.message {
+    display: flex;
+    flex-shrink: 0;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 16px 20px;
+}
+
+.message__avatar {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 18px;
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.message__text {
+    flex: 1;
+    min-width: 0;
+}
+
+.message__head {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    line-height: 20px;
+}
+
+.message__author {
+    font-weight: 600;
+}
+
+.message__time {
+    color: #6b7280;
+    font-size: 13px;
+}
+
+.message__body {
+    line-height: 20px;
+}
+
+/* ---- Empty page: the label 72 px under the top bar ---- */
+
+.empty {
+    align-items: center;
+}
+
+.empty__label {
+    margin-top: 48px;
+    color: #6b7280;
+}
+
+/* ---- List scenario: the header at the top, the rows from y 44 ---- */
+
+.list {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    background-color: #ffffff;
+}
+
+.list .orders__head {
+    flex-shrink: 0;
+    border-radius: 0;
+}
+
+.list__rows {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+.list .order:last-child {
+    border-radius: 0;
 }

@@ -1,4 +1,4 @@
-//! The measurements with continuous frames: scroll glides, steady animation and resize storms,
+//! The measurements with continuous frames: scrolls, live updates and resize storms,
 //! each in a scenario, and the frame metrics the views read of them.
 
 use explorer_core::api::{MetricRef, RunOverview};
@@ -14,54 +14,86 @@ pub struct Source {
     pub words: &'static str,
 }
 
+const fn source(
+    scenario: &'static str,
+    measurement: &'static str,
+    label: &'static str,
+    words: &'static str,
+) -> Source {
+    Source {
+        scenario,
+        measurement,
+        label,
+        words,
+    }
+}
+
 /// Every source, in picker order.
-pub const SOURCES: [Source; 7] = [
-    Source {
-        scenario: "rows",
-        measurement: "scroll",
-        label: "rows · scroll",
-        words: "a 1 s scroll glide over a list with every row built",
-    },
-    Source {
-        scenario: "virtual",
-        measurement: "scroll",
-        label: "virtual · scroll",
-        words: "a 1 s scroll glide over a virtualized list",
-    },
-    Source {
-        scenario: "dashboard",
-        measurement: "scroll",
-        label: "dashboard · scroll",
-        words: "a 1 s scroll glide over the dashboard and its orders",
-    },
-    Source {
-        scenario: "ticker",
-        measurement: "pacing",
-        label: "ticker",
-        words: "3 s of table rows updating every 16 ms",
-    },
-    Source {
-        scenario: "spinner",
-        measurement: "pacing",
-        label: "spinner",
-        words: "3 s of a turning square above static rows",
-    },
-    Source {
-        scenario: "resize",
-        measurement: "resize",
-        label: "resize · storm",
-        words: "a storm of window resizes of the plain list",
-    },
-    Source {
-        scenario: "dashboard-resize",
-        measurement: "resize",
-        label: "dashboard · resize",
-        words: "a storm of window resizes of the dashboard",
-    },
+pub const SOURCES: [Source; 10] = [
+    source(
+        "app",
+        "scroll",
+        "app · glide",
+        "a 1 s touchpad glide over the orders of the app",
+    ),
+    source(
+        "app",
+        "scroll-fling",
+        "app · fling",
+        "a fling over the orders of the app",
+    ),
+    source(
+        "app",
+        "scroll-wheel",
+        "app · wheel",
+        "1 s of mouse wheel notches over the orders of the app",
+    ),
+    source(
+        "app",
+        "live",
+        "app · live",
+        "the live values ticking at 10 Hz beside the turning spinner",
+    ),
+    source(
+        "app",
+        "resize",
+        "app · resize",
+        "a storm of window resizes of the overview",
+    ),
+    source(
+        "app",
+        "resize-messages",
+        "app · resize messages",
+        "a storm of window resizes over the wrapping text of the messages",
+    ),
+    source(
+        "app",
+        "scale",
+        "app · scale",
+        "a switch of the output scale 1, 2, 1",
+    ),
+    source(
+        "list",
+        "scroll",
+        "list · glide",
+        "a 1 s touchpad glide over the virtual list",
+    ),
+    source(
+        "list",
+        "scroll-fling",
+        "list · fling",
+        "a fling over the virtual list",
+    ),
+    source(
+        "list",
+        "scroll-wheel",
+        "list · wheel",
+        "1 s of mouse wheel notches over the virtual list",
+    ),
 ];
 
 impl Source {
-    /// Returns the URL key, such as `rows.scroll`.
+    /// Returns the URL key, such as `app.scroll-fling`.
     pub fn key(&self) -> String {
         format!("{}.{}", self.scenario, self.measurement)
     }
@@ -73,6 +105,11 @@ impl Source {
             .copied()
             .find(|s| s.key() == key)
             .unwrap_or(SOURCES[0])
+    }
+
+    /// Returns the source of a measurement in a scenario, or the first one.
+    pub fn of(scenario: &str, measurement: &str) -> Source {
+        Self::parse(&format!("{scenario}.{measurement}"))
     }
 
     /// Returns a frame metric of the source, such as `interval_p99`.
@@ -101,6 +138,6 @@ pub const LADDER: [(&str, &str); 6] = [
 /// Returns the frame metrics of a source that the views read.
 pub fn metrics(source: &Source) -> Vec<MetricRef> {
     let mut out: Vec<MetricRef> = LADDER.iter().map(|(m, _)| source.metric(m)).collect();
-    out.push(source.metric("stale_refreshes"));
+    out.push(source.metric("missed_share"));
     out
 }

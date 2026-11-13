@@ -1,4 +1,4 @@
-//! The compare switch. egui has no switch widget; its docs point to the toggle switch of the egui
+//! The switch of the compare row and of the live updates. egui has no switch widget; its docs point to the toggle switch of the egui
 //! demo (`egui_demo_lib/src/demo/toggle_switch.rs`), and this is that widget in the spec's size
 //! and colors: allocate the rect, toggle on click, paint the track and the knob.
 

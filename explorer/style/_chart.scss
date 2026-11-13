@@ -394,6 +394,11 @@
   fill: var(--band);
 }
 
+.gx-rowrule {
+  stroke: var(--grid);
+  stroke-width: 1;
+}
+
 .gx-rowlabel {
   font-size: 12px;
 }

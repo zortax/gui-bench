@@ -1,16 +1,19 @@
 //! The orders card: a header of column titles, then one row per order that passes the filters
-//! and the search, all of them laid out every pass (no virtualization). A row is built like the
-//! rows of the rows scenario: a frame of fixed-width cells, its fill taken from its response, and
-//! a separator under it.
+//! and the search, all of them laid out every pass (no virtualization). A row is a frame of
+//! fixed-width cells, its fill taken from its response, and a separator under it. A click on the
+//! amount title sorts the orders.
 
-use eframe::egui::{Align, CornerRadius, Frame, Layout, ProgressBar, Separator, Stroke, Ui, vec2};
+use eframe::egui::{
+    Align, CornerRadius, Frame, Layout, ProgressBar, Sense, Separator, Stroke, Ui, vec2,
+};
 
 use super::spec::{self, Order};
 use super::style::{Weight, area, avatar, card, color, pill, text};
 
-/// The cells of a row from the left of the card: each from its column's left edge to the next
-/// one; the amount, right-aligned, from the end of the progress bar to its own end.
-const CELLS: [(f32, f32); 5] = [
+/// The cells of a row before the amount, from the left of the card: each from its column's left
+/// edge to the next one. The amount, right-aligned, goes from the end of the progress bar to its
+/// own end.
+const CELLS: [(f32, f32); 4] = [
     (spec::COL_ORDER, spec::COL_CUSTOMER),
     (spec::COL_CUSTOMER, spec::COL_STATUS),
     (spec::COL_STATUS, spec::COL_PROGRESS),
@@ -18,36 +21,68 @@ const CELLS: [(f32, f32); 5] = [
         spec::COL_PROGRESS,
         spec::COL_PROGRESS + spec::PROGRESS_WIDTH,
     ),
-    (
-        spec::COL_PROGRESS + spec::PROGRESS_WIDTH,
-        spec::COL_AMOUNT_END,
-    ),
 ];
 /// The space between the avatar and the name.
 const NAME_GAP: f32 = 12.0;
 
-/// Shows the orders card with the `orders` that pass `shown` and `search`.
-pub fn show(ui: &mut Ui, orders: &[Order], shown: &[bool; 4], search: &str) {
-    card().show(ui, |ui| {
-        ui.set_width(ui.available_width());
-        // The progress track color, set once for every row.
-        ui.visuals_mut().extreme_bg_color = color(spec::TRACK);
-        header(ui);
-        set_rule(ui, spec::ROW_RULE);
-        let mut visible = orders
-            .iter()
-            .filter(|order| spec::visible(order, shown, search))
-            .peekable();
-        while let Some(order) = visible.next() {
-            row(ui, order, visible.peek().is_none());
-        }
-    });
+/// The orders of the card, in the order the table shows them.
+pub struct Orders {
+    count: usize,
+    orders: Vec<Order>,
+    /// Whether the orders are sorted by amount.
+    sorted: bool,
 }
 
-/// The header: the column titles on the header fill with the card's top corners, and the rule
-/// under it.
-fn header(ui: &mut Ui) {
-    let radius = spec::CARD_RADIUS as u8;
+impl Orders {
+    /// `count` orders in the order of the data.
+    pub fn new(count: usize) -> Self {
+        Self {
+            count,
+            orders: spec::orders(count),
+            sorted: false,
+        }
+    }
+
+    /// Sorts the orders by amount, or brings the order of the data back.
+    pub fn sort(&mut self, sorted: bool) {
+        if self.sorted != sorted {
+            self.sorted = sorted;
+            self.orders = spec::arranged(spec::orders(self.count), sorted);
+        }
+    }
+
+    /// Shows the orders card with the orders that pass `shown` and `search`.
+    pub fn show(&mut self, ui: &mut Ui, shown: &[bool; 4], search: &str) {
+        card().show(ui, |ui| {
+            ui.set_width(ui.available_width());
+            if header(ui, spec::CARD_RADIUS as u8, spec::COL_AMOUNT_END, self.sorted) {
+                self.sort(!self.sorted);
+            }
+            rows_style(ui);
+            let mut visible = self
+                .orders
+                .iter()
+                .filter(|order| spec::visible(order, shown, search))
+                .peekable();
+            while let Some(order) = visible.next() {
+                row(ui, order, spec::COL_AMOUNT_END, visible.peek().is_none());
+            }
+        });
+    }
+}
+
+/// Sets what every row shares: the progress track color and the color of the rule under a row.
+pub fn rows_style(ui: &mut Ui) {
+    ui.visuals_mut().extreme_bg_color = color(spec::TRACK);
+    set_rule(ui, spec::ROW_RULE);
+}
+
+/// The header: the column titles on the header fill with `radius` at its top corners, and the
+/// rule under it. The amount column ends `end` from the left. Returns true when the amount title
+/// was clicked; it is in the primary color while the orders are `sorted`.
+pub fn header(ui: &mut Ui, radius: u8, end: f32, sorted: bool) -> bool {
+    let height = spec::TABLE_HEADER_HEIGHT - 1.0;
+    let mut clicked = false;
     Frame::new()
         .fill(color(spec::TABLE_HEADER_BG))
         .corner_radius(CornerRadius {
@@ -57,17 +92,29 @@ fn header(ui: &mut Ui) {
             se: 0,
         })
         .show(ui, |ui| {
-            cells(ui, spec::TABLE_HEADER_HEIGHT - 1.0, |ui, column| {
-                let title = text(spec::COLUMNS[column], 12.0, Weight::Semibold, spec::MUTED);
-                ui.label(title);
+            cells(ui, height, end, |ui, column| {
+                if column == spec::SORT_COLUMN {
+                    let title_color = if sorted { spec::PRIMARY } else { spec::MUTED };
+                    let title = text(spec::COLUMNS[column], 12.0, Weight::Semibold, title_color);
+                    let size = vec2(spec::SORT_WIDTH, height);
+                    let sort = area(ui, size, Layout::right_to_left(Align::Center), |ui| {
+                        ui.label(title);
+                    });
+                    clicked = sort.response.interact(Sense::click()).clicked();
+                } else {
+                    let title = text(spec::COLUMNS[column], 12.0, Weight::Semibold, spec::MUTED);
+                    ui.label(title);
+                }
             });
         });
     set_rule(ui, spec::RULE);
     ui.add(Separator::default().spacing(1.0));
+    clicked
 }
 
-/// One order row; the `last` one takes the card's bottom corners for its hover fill.
-fn row(ui: &mut Ui, order: &Order, last: bool) {
+/// One order row, its amount ending `end` from the left; the `last` one takes the card's bottom
+/// corners for its hover fill.
+pub fn row(ui: &mut Ui, order: &Order, end: f32, last: bool) {
     ui.push_id(order.number, |ui| {
         let radius = if last { spec::CARD_RADIUS as u8 } else { 0 };
         let mut frame = Frame::new()
@@ -81,6 +128,7 @@ fn row(ui: &mut Ui, order: &Order, last: bool) {
         cells(
             &mut frame.content_ui,
             spec::ORDER_ROW_HEIGHT - 1.0,
+            end,
             |ui, column| match column {
                 0 => {
                     let number = text(order.number_text(), 14.0, Weight::Regular, spec::MUTED);
@@ -114,19 +162,20 @@ fn row(ui: &mut Ui, order: &Order, last: bool) {
     });
 }
 
-/// Lays out the cells of a row `height` tall; `add` adds the content of cell `column`.
-fn cells(ui: &mut Ui, height: f32, mut add: impl FnMut(&mut Ui, usize)) {
+/// Lays out the cells of a row `height` tall whose amount cell ends `end` from the left; `add`
+/// adds the content of cell `column`.
+fn cells(ui: &mut Ui, height: f32, end: f32, mut add: impl FnMut(&mut Ui, usize)) {
     let size = vec2(ui.available_width(), height);
     area(ui, size, Layout::left_to_right(Align::Center), |ui| {
         ui.add_space(CELLS[0].0);
         for (column, (start, end)) in CELLS.into_iter().enumerate() {
-            let layout = if column == CELLS.len() - 1 {
-                Layout::right_to_left(Align::Center)
-            } else {
-                Layout::left_to_right(Align::Center)
-            };
+            let layout = Layout::left_to_right(Align::Center);
             area(ui, vec2(end - start, height), layout, |ui| add(ui, column));
         }
+        let amount = vec2(end - CELLS[CELLS.len() - 1].1, height);
+        area(ui, amount, Layout::right_to_left(Align::Center), |ui| {
+            add(ui, CELLS.len());
+        });
     });
 }
 

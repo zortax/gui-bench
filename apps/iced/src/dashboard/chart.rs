@@ -6,9 +6,8 @@ use iced::alignment::Vertical;
 use iced::widget::{Space, button, column, container, row, space, stack, text};
 use iced::{Background, Border, Element, Length, Shadow, border, padding};
 
-use super::style::{self, SEMIBOLD};
+use super::style::{self, SEMIBOLD, color};
 use super::{Message, spec};
-use crate::page::color;
 
 /// The plot's height, the top of the header row (the segmented control) inside the card, the
 /// header's height, the space down to the plot, and the top of the title inside the header.

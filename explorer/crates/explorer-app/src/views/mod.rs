@@ -1,20 +1,17 @@
 //! The views of a run, one module each, and the host that picks the view of the route.
 
+mod baseline;
 mod cell;
 mod compare;
-mod dashboard;
 mod explore;
-mod footprint;
 mod frames;
-mod input;
 mod kit;
+mod list;
 mod overview;
 mod provenance;
-mod resize;
+mod response;
 mod runs;
-mod scaling;
-mod steady;
-mod table;
+mod smoothness;
 
 pub use cell::CellDrawer;
 pub use provenance::Provenance;
@@ -26,30 +23,24 @@ use leptos_router::hooks::use_params_map;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum View {
     Overview,
-    Dashboard,
+    Response,
+    Smoothness,
     Frames,
-    Scaling,
-    Table,
-    Steady,
-    Input,
-    Resize,
-    Footprint,
+    Baseline,
+    List,
     Compare,
     Explore,
     Runs,
 }
 
 impl View {
-    pub const ALL: [View; 12] = [
+    pub const ALL: [View; 9] = [
         View::Overview,
-        View::Dashboard,
+        View::Response,
+        View::Smoothness,
         View::Frames,
-        View::Scaling,
-        View::Table,
-        View::Steady,
-        View::Input,
-        View::Resize,
-        View::Footprint,
+        View::Baseline,
+        View::List,
         View::Compare,
         View::Explore,
         View::Runs,
@@ -59,14 +50,11 @@ impl View {
     pub fn slug(self) -> &'static str {
         match self {
             View::Overview => "overview",
-            View::Dashboard => "dashboard",
+            View::Response => "response",
+            View::Smoothness => "smoothness",
             View::Frames => "frames",
-            View::Scaling => "scaling",
-            View::Table => "table",
-            View::Steady => "steady",
-            View::Input => "input",
-            View::Resize => "resize",
-            View::Footprint => "footprint",
+            View::Baseline => "baseline",
+            View::List => "list",
             View::Compare => "compare",
             View::Explore => "explore",
             View::Runs => "runs",
@@ -77,14 +65,11 @@ impl View {
     pub fn label(self) -> &'static str {
         match self {
             View::Overview => "Overview",
-            View::Dashboard => "Dashboard",
+            View::Response => "Response time",
+            View::Smoothness => "Smoothness",
             View::Frames => "Frame times",
-            View::Scaling => "Rows & scroll",
-            View::Table => "Table ops",
-            View::Steady => "Ticker & spinner",
-            View::Input => "Typing & search",
-            View::Resize => "Resize",
-            View::Footprint => "Memory & idle",
+            View::Baseline => "Baseline",
+            View::List => "List",
             View::Compare => "Compare",
             View::Explore => "Explore",
             View::Runs => "Runs",
@@ -94,24 +79,23 @@ impl View {
     /// Returns what the view shows, for its tab tooltip.
     pub fn description(self) -> &'static str {
         match self {
-            View::Overview => "The run at a glance: health and a scorecard of every framework",
-            View::Dashboard => {
-                "A realistic app: interactions, scroll, resize, startup and screenshots (dashboard)"
+            View::Overview => {
+                "The run at a glance: how far each framework scales, health, provenance and builds"
+            }
+            View::Response => {
+                "The response time of every interaction as the app grows, and the cost per 1,000 elements"
+            }
+            View::Smoothness => {
+                "Slowest frames and missed refreshes of scrolling, animation and resize as the app grows, and the fling frame by frame"
             }
             View::Frames => {
-                "Frame-time percentiles, late frames and stale refreshes of scroll, animation and resize"
+                "Frame-time percentiles and every late frame of any scroll, animation or resize"
             }
-            View::Scaling => "Hover latency, scroll and startup against row count (rows, virtual)",
-            View::Table => {
-                "Keyed table operations: latency, CPU per operation, variant speedup, churn"
+            View::Baseline => {
+                "What a small app costs: startup, memory, work at rest, hover response, binary size"
             }
-            View::Steady => {
-                "Steady animation: CPU and GPU time, frames and damage (ticker, spinner)"
-            }
-            View::Input => "Key to photon while typing, and filtering a list (typing, search)",
-            View::Resize => "Resize storm and scale switch: configure to present",
-            View::Footprint => "Memory and VRAM against rows, and what an idle app does",
-            View::Compare => "One framework, variant or run against another, every metric",
+            View::List => "The virtual list at 10,000 and 1,000,000 rows",
+            View::Compare => "One framework or run against another, every metric",
             View::Explore => "Any metric against any other",
             View::Runs => "Every run with its provenance, and the differences of two runs",
         }
@@ -133,14 +117,11 @@ pub fn ViewHost() -> impl IntoView {
     });
     move || match view.get() {
         Some(View::Overview) => overview::OverviewView().into_any(),
-        Some(View::Dashboard) => dashboard::DashboardView().into_any(),
+        Some(View::Response) => response::ResponseView().into_any(),
+        Some(View::Smoothness) => smoothness::SmoothnessView().into_any(),
         Some(View::Frames) => frames::FramesView().into_any(),
-        Some(View::Scaling) => scaling::ScalingView().into_any(),
-        Some(View::Table) => table::TableView().into_any(),
-        Some(View::Steady) => steady::SteadyView().into_any(),
-        Some(View::Input) => input::InputView().into_any(),
-        Some(View::Resize) => resize::ResizeView().into_any(),
-        Some(View::Footprint) => footprint::FootprintView().into_any(),
+        Some(View::Baseline) => baseline::BaselineView().into_any(),
+        Some(View::List) => list::ListView().into_any(),
         Some(View::Compare) => compare::CompareView().into_any(),
         Some(View::Explore) => explore::ExploreView().into_any(),
         Some(View::Runs) => runs::RunsView().into_any(),

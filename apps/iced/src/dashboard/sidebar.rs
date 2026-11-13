@@ -5,9 +5,8 @@ use iced::alignment::Vertical;
 use iced::widget::{button, column, container, row, space, text};
 use iced::{Background, Border, Element, Length, Shadow, padding};
 
-use super::style::{self, SEMIBOLD};
+use super::style::{self, SEMIBOLD, color};
 use super::{Message, spec};
-use crate::page::color;
 
 /// The top of the user block below its rule, and its left padding.
 const USER_TOP: f32 = 19.0;
@@ -80,12 +79,12 @@ pub fn view<'a>(active: usize) -> Element<'a, Message> {
 }
 
 /// Returns a circle of `size` with white initials.
-pub fn avatar<'a>(
-    initials: &'a str,
+pub fn avatar<'a, M: 'a>(
+    initials: impl text::IntoFragment<'a>,
     size: f32,
     text_size: f32,
     background: u32,
-) -> Element<'a, Message> {
+) -> Element<'a, M> {
     container(
         text(initials)
             .size(text_size)

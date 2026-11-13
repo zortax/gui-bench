@@ -11,14 +11,13 @@ use super::columns::Columns;
 use super::provenance;
 use crate::catalog::{Entry, FORMAT};
 use crate::error::{DataError, read_json};
-use crate::report::{BenchReport, CellOutcome, RunIndex, Startup};
+use crate::report::{BenchReport, CellOutcome, LaunchRaw, RunIndex, Startup};
 
 /// The files of one cell that the store keeps for a moment.
 pub(super) struct LoadedCell {
     pub info: CellInfo,
     pub reports: Vec<(String, BenchReport)>,
-    pub startup: Option<Startup>,
-    pub churn: Option<serde_json::Value>,
+    pub launches: Vec<LaunchRaw>,
 }
 
 /// Loads a run directory.
@@ -57,8 +56,7 @@ pub(super) fn load(entry: &Entry) -> Result<RunData, DataError> {
 fn load_cell(run_dir: &Path, id: u32, outcome: &CellOutcome) -> LoadedCell {
     let dir = run_dir.join(&outcome.dir);
     let mut reports = Vec::new();
-    let mut startup = None;
-    let mut churn = None;
+    let mut launches = Vec::new();
     let mut names: Vec<String> = std::fs::read_dir(&dir)
         .into_iter()
         .flatten()
@@ -73,8 +71,11 @@ fn load_cell(run_dir: &Path, id: u32, outcome: &CellOutcome) -> LoadedCell {
         let path = dir.join(format!("{name}.json"));
         match name.as_str() {
             "cell" => {}
-            "startup" => startup = read_json(&path).ok(),
-            "churn" => churn = read_json(&path).ok(),
+            "startup" => {
+                launches = read_json::<Startup>(&path)
+                    .map(|s| s.launches)
+                    .unwrap_or_default();
+            }
             _ if name.starts_with("phases-") => {}
             _ => match read_json::<BenchReport>(&path) {
                 Ok(report) if report.format_version.is_some() => reports.push((name, report)),
@@ -106,16 +107,19 @@ fn load_cell(run_dir: &Path, id: u32, outcome: &CellOutcome) -> LoadedCell {
     let info = CellInfo {
         id,
         key: outcome.cell.key(),
+        part: outcome.cell.part(),
         dir: outcome.dir.clone(),
         done: outcome.done.clone(),
         errors: outcome.errors.clone(),
         skipped: outcome.skipped.clone(),
+        missed_refreshes: outcome.missed_refreshes,
+        over_budget: outcome.over_budget,
+        stopped: outcome.stopped.clone(),
         health,
     };
     LoadedCell {
         info,
         reports,
-        startup,
-        churn,
+        launches,
     }
 }

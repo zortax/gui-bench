@@ -9,8 +9,10 @@ pub const FRAMEWORKS: [&str; 8] = [
     "zgui", "gpui-kit", "freya", "vizia", "floem", "iced", "egui", "dioxus",
 ];
 /// Editions and their framework.
-pub const EDITIONS: [(&str, &str); 3] = [
+pub const EDITIONS: [(&str, &str); 5] = [
+    ("gpui-kit-tuned", "gpui-kit"),
     ("gpui-kit-fast", "gpui-kit"),
+    ("iced-tuned", "iced"),
     ("freya-056a5b4", "freya"),
     ("dioxus-skia", "dioxus"),
 ];
@@ -75,44 +77,17 @@ pub fn sort(frameworks: &mut [String]) {
     frameworks.sort_by(|a, b| rank(a).total_cmp(&rank(b)).then_with(|| a.cmp(b)));
 }
 
-/// The variants of the table and ticker in plot order.
-pub const VARIANTS: [&str; 4] = ["fine", "shared", "coarse", "default"];
-
-/// Returns the place of a variant.
-pub fn variant_rank(variant: &str) -> usize {
-    VARIANTS
-        .iter()
-        .position(|v| *v == variant)
-        .unwrap_or(VARIANTS.len())
-}
-
-/// Returns the reader-facing name of a variant.
-pub fn variant_name(variant: &str) -> &str {
-    match variant {
-        "shared" => "shared signal",
-        "default" => "one variant",
-        other => other,
-    }
-}
-
-/// The marker of a variant, a second encoding on top of the framework color.
+/// The marker of a series, a second encoding on top of the framework color.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Marker {
     Circle,
     Diamond,
     Square,
+    /// A cross: a size that did not run.
+    Cross,
 }
 
 impl Marker {
-    /// Returns the marker of a variant.
-    pub fn of_variant(variant: &str) -> Self {
-        match variant {
-            "shared" => Self::Diamond,
-            "coarse" => Self::Square,
-            _ => Self::Circle,
-        }
-    }
-
     /// Returns an SVG path of the marker centred on the origin with radius `r`.
     pub fn path(self, r: f64) -> String {
         match self {
@@ -128,17 +103,37 @@ impl Marker {
                 let s = r * 1.2;
                 format!("M0,{:.2}L{s:.2},0L0,{s:.2}L{:.2},0Z", -s, -s)
             }
+            Self::Cross => {
+                let (a, b) = (r * 1.25, r * 0.3);
+                format!(
+                    "M{:.2},{:.2}L{:.2},{:.2}L0,{:.2}L{:.2},{:.2}L{:.2},{:.2}L{:.2},0L{:.2},{:.2}L{:.2},{:.2}L0,{:.2}L{:.2},{:.2}L{:.2},{:.2}L{:.2},0Z",
+                    -a,
+                    -a + b,
+                    -a + b,
+                    -a,
+                    -b,
+                    a - b,
+                    -a,
+                    a,
+                    -a + b,
+                    b,
+                    a,
+                    a - b,
+                    a - b,
+                    a,
+                    b,
+                    -a + b,
+                    a,
+                    -a,
+                    a - b,
+                    -b
+                )
+            }
         }
     }
 }
 
-/// The dash pattern of a refresh rate, a second encoding on lines.
-pub fn hz_dash(hz: f64) -> &'static str {
-    if hz > 130.0 {
-        "6 4"
-    } else if hz > 100.0 {
-        "8 3 2 3"
-    } else {
-        ""
-    }
+/// The dash pattern of the line of a framework: editions are dashed.
+pub fn dash(framework: &str) -> &'static str {
+    if is_edition(framework) { "5 3" } else { "" }
 }

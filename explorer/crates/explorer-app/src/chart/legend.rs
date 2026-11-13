@@ -35,7 +35,7 @@ impl LegendItem {
         }
     }
 
-    /// Returns an encoding entry in muted ink, such as a refresh rate or a variant.
+    /// Returns an encoding entry in muted ink, such as a part built by hand.
     pub fn encoding(
         label: impl Into<String>,
         marker: Marker,

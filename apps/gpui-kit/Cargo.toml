@@ -10,5 +10,9 @@ publish = false
 [dependencies]
 gpui-kit = "0.9.1"
 
+# `tuned` embeds the stable views as cached views (`src/dashboard/style.rs`).
+[features]
+tuned = []
+
 [profile.release]
 debug = 1

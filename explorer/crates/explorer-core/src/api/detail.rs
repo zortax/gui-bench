@@ -1,5 +1,5 @@
 //! The detail of one cell: its outcome, its startup, the validity checks and iterations of each
-//! measurement, and the raw series of latency samples, frames, keys, configures and phases.
+//! measurement, and the raw series of latency samples, frames, configures and phases.
 
 use serde::{Deserialize, Serialize};
 
@@ -19,27 +19,30 @@ pub struct Summary {
     pub p99: f64,
 }
 
-/// The startup milestones of the app, in milliseconds from spawn.
+/// The milestones of one launch of the app, in milliseconds from spawn.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
-pub struct Startup {
+pub struct Launch {
     pub connected_ms: Option<f64>,
     pub first_surface_ms: Option<f64>,
     pub toplevel_ms: Option<f64>,
     pub first_buffer_ms: Option<f64>,
     pub first_present_ms: Option<f64>,
+    /// The frame after which the window shows the layout of the spec.
+    pub content_ms: Option<f64>,
     /// The app exited before it showed a frame.
     pub exited_early: bool,
 }
 
-impl Startup {
+impl Launch {
     /// Returns the milestones in order, with their names.
-    pub fn milestones(&self) -> [(&'static str, Option<f64>); 5] {
+    pub fn milestones(&self) -> [(&'static str, Option<f64>); 6] {
         [
             ("connected", self.connected_ms),
             ("first surface", self.first_surface_ms),
             ("toplevel", self.toplevel_ms),
             ("first buffer", self.first_buffer_ms),
             ("first present", self.first_present_ms),
+            ("content", self.content_ms),
         ]
     }
 }
@@ -73,7 +76,7 @@ pub struct IterationInfo {
 /// One bench report of a cell, without its series.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MeasurementDetail {
-    /// The file stem, such as `hover`.
+    /// The file stem, such as `hover-row`.
     pub name: String,
     /// The fakeland preset, such as `hover-latency`.
     pub preset: Option<String>,
@@ -92,11 +95,15 @@ pub struct CellDetail {
     pub cell: CellInfo,
     /// The app arguments.
     pub args: Vec<String>,
-    pub startup: Option<Startup>,
+    /// Every launch of the startup measurement.
+    pub launches: Vec<Launch>,
     pub measurements: Vec<MeasurementDetail>,
     pub environment: Option<Environment>,
-    pub has_screenshot: bool,
+    /// The screenshots the cell holds, by file stem, such as `screenshot` or `screenshot-menu`.
+    pub screenshots: Vec<String>,
     pub has_log: bool,
+    /// The parts of the scenario that the app of the framework builds by hand, with the note.
+    pub flags: Vec<(String, String)>,
 }
 
 /// One latency repeat: input to the first frame that shows the response.
@@ -146,6 +153,9 @@ pub struct HistogramBin {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct LatencyDetail {
     pub measurement: String,
+    /// The median time from the commit until the GPU finished the frame, which the response time
+    /// adds to the time from input to commit of every repeat.
+    pub commit_to_ready_p50: f64,
     pub iterations: Vec<LatencyIteration>,
     /// The pooled stages, in order from input to presentation.
     pub stages: Vec<Stage>,
@@ -201,33 +211,6 @@ pub struct FramesDetail {
     /// The scroll steps, empty for measurements without a glide.
     pub scroll: Vec<FrameIteration>,
     pub pacing: Vec<PacingIteration>,
-    pub refresh_ms: f64,
-}
-
-/// One typed key.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct KeyRecord {
-    /// The send time from the first key, in milliseconds.
-    pub t_ms: f64,
-    pub key: String,
-    pub latency_ms: Option<f64>,
-    pub handling_ms: Option<f64>,
-    pub backlog: u32,
-}
-
-/// The keys of one measured typing iteration.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct TypingIteration {
-    pub index: u32,
-    pub keys: Vec<KeyRecord>,
-    pub latency_slope_ms_per_key: Option<f64>,
-}
-
-/// The typing series of a measurement in one cell.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct TypingDetail {
-    pub measurement: String,
-    pub iterations: Vec<TypingIteration>,
     pub refresh_ms: f64,
 }
 

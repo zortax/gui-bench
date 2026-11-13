@@ -1,6 +1,6 @@
-//! The dashboard scenario: a realistic analytics app with a sidebar, a top bar, metric cards, a
+//! The `app` scenario: a realistic analytics app with a sidebar, a top bar, metric cards, a
 //! bar chart with controls, and a table of orders, styled with rounded corners and shadows. Every
-//! app draws the same layout, so the probes of the runner (`runner/src/layout.rs`) find the same
+//! app draws the same layout, so the probes of the runner (`runner/src/dashboard.rs`) find the same
 //! elements at the same window points. Measures are logical pixels at scale 1, colors `0xrrggbb`.
 //!
 //! The window is 1280x800:
@@ -18,6 +18,14 @@
 //!      `ROW2_HEIGHT` tall;
 //!   3. the orders card: a header and `--rows` order rows (all of them real elements, no
 //!      virtualization), each with an avatar, a status pill and a progress bar.
+//!
+//! The nav items switch the page that the content shows (`Page`): "Overview" is the page above,
+//! "Messages" is a feed of `--rows` message cards with wrapping text, and every other item shows
+//! an empty page. The top bar also holds the live switch with its spinner, and the export button
+//! opens a menu over the content. A click on the "AMOUNT" column title sorts the orders.
+//!
+//! The `list` scenario shows the orders alone, in the framework's virtual list; see
+//! `LIST_ROWS_TOP`.
 //!
 //! The functions below give every text and number. A window narrower than 1280 shrinks the
 //! flexible widths (the metric cards, the chart card, the orders card); content that no longer
@@ -170,6 +178,67 @@ pub const PROGRESS_HEIGHT: f32 = 6.0;
 pub const AVATAR: f32 = 28.0;
 pub const COLUMNS: [&str; 5] = ["ORDER", "CUSTOMER", "STATUS", "PROGRESS", "AMOUNT"];
 
+/// A click on the "AMOUNT" column title sorts the orders by amount, largest first; the next click
+/// brings the order of the data back. While the orders are sorted the title is `PRIMARY`. The
+/// title is the only one that reacts, over `x SORT_X..SORT_X + SORT_WIDTH` of the card.
+pub const SORT_COLUMN: usize = 4;
+pub const SORT_X: f32 = 848.0;
+pub const SORT_WIDTH: f32 = 120.0;
+
+/// The live switch of the top bar, `x 976..1016`, `y 21..43`: the framework's switch, the same
+/// look as the compare switch, off at startup. While it is on, a timer ticks every
+/// `LIVE_INTERVAL_MS`, every metric card shows `kpi_value(k, tick)`, and the spinner shows: a
+/// `SPINNER_SIZE` square with radius `SPINNER_RADIUS` in `PRIMARY` at x `1040`, centered on y 32,
+/// which turns once every `SPINNER_PERIOD_MS` at a constant speed. Turning the switch off hides
+/// the spinner, stops the timer and shows the startup values again.
+pub const LIVE_X: f32 = 976.0;
+pub const LIVE_Y: f32 = 21.0;
+pub const LIVE_INTERVAL_MS: u64 = 100;
+pub const SPINNER_X: f32 = 1040.0;
+pub const SPINNER_SIZE: f32 = 24.0;
+pub const SPINNER_RADIUS: f32 = 6.0;
+pub const SPINNER_PERIOD_MS: u64 = 1000;
+
+/// The export menu: a click on the export button opens it, and a click on the button or on an
+/// item closes it. It lies over the content, its left edge under the button's, `x 1100..1260` from y `MENU_Y`, with `MENU_PADDING`
+/// around `MENU_ITEMS` items of `MENU_ITEM_HEIGHT`: a `CARD_BG` box with radius 8, a 1 px `RULE`
+/// border and `SHADOW_CARD`. An item holds its label (14 px `TEXT`) 12 px from its left, takes
+/// `MENU_HOVER` and radius 6 under the pointer, and does nothing else. The menu is the
+/// framework's menu or popover where it has one.
+pub const MENU_X: f32 = 1100.0;
+pub const MENU_Y: f32 = 54.0;
+pub const MENU_WIDTH: f32 = 160.0;
+pub const MENU_PADDING: f32 = 4.0;
+pub const MENU_ITEM_HEIGHT: f32 = 36.0;
+
+/// The messages page: the scroll container of the content holds `--rows` message cards, one per
+/// row, `MESSAGE_GAP` apart. A card has the look of every card, padding `MESSAGE_PADDING` (down,
+/// across), and holds a `MESSAGE_AVATAR` circle with 13 px semibold white initials at its top
+/// left; `MESSAGE_TEXT_X` from the card's left the author (14 px semibold `TEXT`) and, 8 px
+/// after it, the time (13 px `MUTED`) on one line of `MESSAGE_LINE`; and below that the body
+/// (14 px `TEXT`, lines of `MESSAGE_LINE`), which wraps at the right padding of the card. The
+/// height of a card follows its body, so a narrower window makes the cards taller.
+pub const MESSAGE_GAP: f32 = 12.0;
+pub const MESSAGE_PADDING: (f32, f32) = (16.0, 20.0);
+pub const MESSAGE_AVATAR: f32 = 36.0;
+pub const MESSAGE_TEXT_X: f32 = 68.0;
+pub const MESSAGE_LINE: f32 = 20.0;
+
+/// The empty page of the nav items without content: `EMPTY_LABEL` in 14 px `MUTED`, centered
+/// across the content, its top `CONTENT_PADDING` + 48 below the top bar.
+pub const EMPTY_TOP: f32 = 72.0;
+
+/// The `list` scenario: the window holds the header of the orders card over its full width at
+/// the top (`TABLE_HEADER_HEIGHT`, no radius, no shadow) and below it the framework's virtual
+/// list, which fills the rest of the window with `--rows` order rows of `ORDER_ROW_HEIGHT`: row
+/// `r` at window `y LIST_ROWS_TOP + 52 r` before any scroll. Only the rows in and near the window
+/// exist. The rows and the column titles look as in the app and keep their offsets from the left
+/// edge; the amount column of the header ends 24 px from the right edge, and its title sorts
+/// over the last `SORT_WIDTH` before that. The amounts of the rows end where the scrollbar of the
+/// list leaves them, at most 24 px further left. Row `r` shows `order(list_order(count, sorted)[r])`. The list scrolls
+/// the way the framework's virtual list does by default.
+pub const LIST_ROWS_TOP: f32 = 44.0;
+
 /// The font sizes: 14 px unless the layout says otherwise. All text is sans-serif; "semibold" is
 /// weight 600 and "bold" weight 700 where the framework has them.
 pub const FONT_SIZE: f32 = 14.0;
@@ -247,6 +316,7 @@ pub const TABLE_HEADER_BG: u32 = 0xf9fafb;
 pub const ROW_RULE: u32 = 0xf3f4f6;
 pub const ROW_HOVER: u32 = 0xeef2ff;
 pub const TRACK: u32 = 0xe5e7eb;
+pub const MENU_HOVER: u32 = 0xf3f4f6;
 
 /// The avatar colors of the customers.
 pub const AVATAR_COLORS: [u32; 8] = [
@@ -267,6 +337,34 @@ pub const FILTERS_TITLE: &str = "Filters";
 pub const COMPARE_LABEL: &str = "Compare to previous period";
 pub const RESET_LABEL: &str = "Reset";
 pub const APPLY_LABEL: &str = "Apply";
+pub const LIVE_LABEL: &str = "Live updates";
+pub const EMPTY_LABEL: &str = "Nothing here yet";
+
+/// The items of the export menu, top to bottom.
+pub const MENU_ITEMS: [&str; 3] = ["Export CSV", "Export PDF", "Print"];
+
+/// What the content shows; the active nav item picks it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Page {
+    /// The metric cards, the chart, the filters and the orders.
+    Overview,
+    /// The feed of message cards.
+    Messages,
+    /// Nothing but `EMPTY_LABEL`.
+    Empty,
+}
+
+/// The nav item of the messages page, which is also the item with the badge.
+pub const MESSAGES_ITEM: usize = BADGE_ITEM;
+
+/// Returns the page of nav item `item`.
+pub fn page(item: usize) -> Page {
+    match item {
+        0 => Page::Overview,
+        MESSAGES_ITEM => Page::Messages,
+        _ => Page::Empty,
+    }
+}
 
 /// The nav items, the first active at startup.
 pub const NAV_ITEMS: [&str; 9] = [
@@ -335,6 +433,32 @@ pub const KPIS: [Kpi; KPI_COUNT] = [
         ],
     },
 ];
+
+/// Returns the value text of metric card `k` at live tick `tick`. Tick 0 is the startup value;
+/// every later tick gives another number of the same shape.
+pub fn kpi_value(k: usize, tick: u64) -> String {
+    if tick == 0 {
+        return KPIS[k].value.to_owned();
+    }
+    let step = (tick * 37 + k as u64 * 11) % 97;
+    match k {
+        0 => format!("${}", thousands(84_000 + step * 13)),
+        1 => thousands(2_400 + step),
+        2 => format!("{}.{:02}%", 3, step),
+        _ => format!("${}.{:02}", 90 + step % 9, step),
+    }
+}
+
+/// Returns a number with a comma between every three digits.
+fn thousands(value: u64) -> String {
+    let mut text = value.to_string();
+    let mut at = text.len();
+    while at > 3 {
+        at -= 3;
+        text.insert(at, ',');
+    }
+    text
+}
 
 /// The height in px of chart bar `i` (0..24) of series `series` (0..3, `SEGMENTS`): between 40
 /// and 216.
@@ -422,14 +546,7 @@ pub struct Order {
 impl Order {
     /// Returns the amount as `$1,234.56`.
     pub fn amount(&self) -> String {
-        let dollars = self.cents / 100;
-        let mut text = dollars.to_string();
-        let mut at = text.len();
-        while at > 3 {
-            at -= 3;
-            text.insert(at, ',');
-        }
-        format!("${text}.{:02}", self.cents % 100)
+        format!("${}.{:02}", thousands(self.cents / 100), self.cents % 100)
     }
 
     /// Returns the order number as `#10200`.
@@ -456,8 +573,23 @@ pub fn order(i: usize) -> Order {
         avatar: AVATAR_COLORS[(i * 5) % AVATAR_COLORS.len()],
         status,
         progress: ((i * 37) % 101) as u32,
-        cents: ((i as u64 * 7919) % 500_000) + 1_000,
+        cents: cents(i),
     }
+}
+
+/// Returns the amount of order `i` in cents.
+pub fn cents(i: usize) -> u64 {
+    ((i as u64 * 7919) % 500_000) + 1_000
+}
+
+/// Returns the indices of the orders of the list in the order of its rows: by amount, largest
+/// first, when `sorted`, and `0..count` otherwise. Orders with the same amount keep their order.
+pub fn list_order(count: usize, sorted: bool) -> Vec<u32> {
+    let mut indices: Vec<u32> = (0..count as u32).collect();
+    if sorted {
+        indices.sort_by_key(|i| std::cmp::Reverse(cents(*i as usize)));
+    }
+    indices
 }
 
 /// Returns the orders of a table of `count` rows.
@@ -475,6 +607,79 @@ pub fn visible(order: &Order, shown: &[bool; 4], search: &str) -> bool {
                 .to_lowercase()
                 .contains(&search.to_lowercase()))
 }
+
+/// Returns the orders in the order the table shows them: by amount, largest first, when
+/// `sorted`, and as given otherwise. Orders with the same amount keep their order.
+pub fn arranged(mut orders: Vec<Order>, sorted: bool) -> Vec<Order> {
+    if sorted {
+        orders.sort_by(|a, b| b.cents.cmp(&a.cents));
+    }
+    orders
+}
+
+const SENTENCES: [&str; 12] = [
+    "The export for last quarter is ready and I attached the summary to the ticket.",
+    "Could you take another look at the numbers for the northern region before the call?",
+    "We shipped the fix this morning.",
+    "Refunds are up a little this week, mostly from one campaign that ran with the wrong price.",
+    "Thanks, that works for me.",
+    "I moved the review to Thursday so that everyone from the warehouse team can join us.",
+    "The new dashboard loads much faster on the old laptops, which the support team noticed at once.",
+    "Please confirm the address.",
+    "Two orders are still waiting for the customs papers and should go out early next week.",
+    "Let me know if anything is missing.",
+    "Conversion went down after the redesign of the checkout, so we are testing the old layout again.",
+    "Great work on the launch!",
+];
+
+/// One message of the feed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Message {
+    pub author: String,
+    /// The two initials of the author.
+    pub initials: String,
+    pub avatar: u32,
+    /// The time, such as `09:41`.
+    pub time: String,
+    /// One to three sentences.
+    pub body: String,
+}
+
+/// Returns message `i` of the feed.
+pub fn message(i: usize) -> Message {
+    let first = FIRST_NAMES[(i * 3 + 1) % FIRST_NAMES.len()];
+    let last = LAST_NAMES[(i * 7 + 2) % LAST_NAMES.len()];
+    let body = (0..=i % 3)
+        .map(|k| SENTENCES[(i * 5 + k * 7) % SENTENCES.len()])
+        .collect::<Vec<_>>()
+        .join(" ");
+    Message {
+        author: format!("{first} {last}"),
+        initials: format!("{}{}", &first[..1], &last[..1]),
+        avatar: AVATAR_COLORS[(i * 3) % AVATAR_COLORS.len()],
+        time: format!("{:02}:{:02}", 8 + (i / 6) % 10, (i * 7) % 60),
+        body,
+    }
+}
+
+/// Returns the messages of a feed of `count` cards.
+pub fn messages(count: usize) -> Vec<Message> {
+    (0..count).map(message).collect()
+}
+
+/// The number of elements the overview holds with `count` orders, and the messages page with
+/// `count` messages, as the spec counts them: one per box, text, control and bar. Frameworks
+/// build more or fewer nodes of their own; results use this count as the size of the app.
+pub fn elements(count: usize) -> usize {
+    CHROME_ELEMENTS + ORDER_ELEMENTS * count
+}
+
+/// The elements outside the orders: the sidebar (39), the top bar (8), the metric cards (69), the
+/// chart card (84), the filter card (21), and the orders card with its header (7).
+pub const CHROME_ELEMENTS: usize = 228;
+/// The elements of one order row: the row, five cells, the avatar, the name, the pill, the track
+/// and its fill.
+pub const ORDER_ELEMENTS: usize = 11;
 
 #[cfg(test)]
 mod tests {
@@ -523,5 +728,53 @@ mod tests {
         let name = o.customer.to_uppercase();
         assert!(visible(&o, &[true; 4], &name[..3]));
         assert!(!visible(&o, &[true; 4], "zzz"));
+    }
+
+    #[test]
+    fn sorting_puts_the_largest_amount_first() {
+        let sorted = arranged(orders(50), true);
+        assert!(sorted.windows(2).all(|w| w[0].cents >= w[1].cents));
+        assert_ne!(sorted[0].number, order(0).number);
+        assert_eq!(arranged(orders(50), false), orders(50));
+    }
+
+    #[test]
+    fn the_list_sorts_like_the_table() {
+        let by_amount: Vec<u32> = arranged(orders(200), true)
+            .iter()
+            .map(|o| o.number - 10200)
+            .collect();
+        assert_eq!(list_order(200, true), by_amount);
+        assert_eq!(list_order(3, false), [0, 1, 2]);
+    }
+
+    #[test]
+    fn live_values_start_at_the_startup_value() {
+        for k in 0..KPI_COUNT {
+            assert_eq!(kpi_value(k, 0), KPIS[k].value);
+            assert_ne!(kpi_value(k, 1), kpi_value(k, 2));
+        }
+        assert_eq!(kpi_value(0, 1), "$84,481");
+    }
+
+    #[test]
+    fn messages_are_stable() {
+        let m = message(2);
+        assert_eq!(m.body.split(". ").count(), 3);
+        assert_eq!(message(0).time, "08:00");
+        assert_eq!(messages(30).len(), 30);
+        assert_eq!(page(MESSAGES_ITEM), Page::Messages);
+        assert_eq!(page(0), Page::Overview);
+        assert_eq!(page(3), Page::Empty);
+    }
+
+    #[test]
+    fn the_new_controls_fit_the_top_bar() {
+        assert!(SEARCH_X + SEARCH_WIDTH < LIVE_X);
+        assert!(LIVE_X + SWITCH_WIDTH < SPINNER_X);
+        assert!(SPINNER_X + SPINNER_SIZE < EXPORT_X);
+        assert_eq!(MENU_X, EXPORT_X);
+        assert!(MENU_X + MENU_WIDTH < WINDOW.0);
+        assert_eq!(SORT_X + SORT_WIDTH, COL_AMOUNT_END);
     }
 }

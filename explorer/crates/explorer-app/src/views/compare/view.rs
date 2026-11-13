@@ -1,9 +1,10 @@
-//! The layout of the compare view and the pairing of cells: frameworks (with variants) inside the
-//! run, or the same cells in the run and the compare run.
+//! The layout of the compare view and the pairing of cells: two frameworks inside the run, or
+//! the same cells in the run and the compare run.
 
 use std::sync::Arc;
 
-use explorer_core::api::{CellInfo, CellKey, MetricRef, RunOverview};
+use explorer_core::api::{MetricRef, RunOverview};
+use explorer_core::story::PACED;
 use leptos::prelude::*;
 
 use super::forest::{Pair, Verdict, ratio, row, verdict};
@@ -11,73 +12,30 @@ use crate::api::metric_catalog;
 use crate::chart::{Axis, ChartCard, DotModel, DotPlot, DotRow, Rule};
 use crate::palette;
 use crate::state::{RunView, use_explorer, use_param};
-use crate::views::kit::{Data, ViewHead, WithData};
+use crate::views::kit::{Data, ViewHead, WithData, missed, response_metrics, slowest};
 use crate::widgets::{ChartSkeleton, Empty, Segmented, SelectBox};
 
-/// The key metrics of every scenario.
-const KEY: [(&str, &str, &str); 22] = [
-    ("startup", "startup", "first_present_ms"),
-    ("hover", "latency", "total_ms"),
-    ("hover", "latency", "input_to_commit_p50"),
-    ("scroll", "scroll_smoothness", "smoothness_score"),
-    ("scroll", "frame_pacing", "fps"),
-    ("scroll", "resources", "cpu_ms_per_s"),
-    ("idle", "resources", "cpu_ms_per_s"),
-    ("idle", "resources", "wakeups_per_s"),
+/// The key metrics beside the responses and the pacing measurements of the story.
+const KEY: [(&str, &str, &str); 9] = [
+    ("startup", "startup", "content_ms"),
     ("idle", "resources", "pss_max"),
     ("idle", "resources", "gpu_proc_mem_max"),
-    ("op-select", "latency", "total_ms"),
-    ("op-update10", "latency", "total_ms"),
-    ("op-swap", "latency", "total_ms"),
-    ("op-replace", "latency", "total_ms"),
-    ("op-append", "latency", "total_ms"),
-    ("op-clear", "latency", "total_ms"),
-    ("pacing", "resources", "cpu_ms_per_s"),
-    ("pacing", "frame_cost", "gpu_fence_ms_per_s"),
-    ("pacing", "frame_pacing", "fps"),
-    ("typing", "typing", "latency_p50"),
-    ("filter", "latency", "total_ms"),
+    ("idle", "resources", "cpu_ms_per_s"),
+    ("idle", "resources", "wakeups_per_s"),
     ("resize", "resize", "configure_to_present_p50"),
+    ("resize", "resize", "mismatched_frames"),
+    ("live", "resources", "cpu_ms_per_s"),
+    ("live", "frame_cost", "gpu_fence_ms_per_s"),
 ];
 
 fn key_metrics() -> Vec<MetricRef> {
-    KEY.iter()
-        .map(|(a, b, c)| MetricRef::new(a, b, c))
-        .collect()
-}
-
-/// Parses a side `framework` or `framework/variant`.
-fn side(spec: &str) -> (String, Option<String>) {
-    match spec.split_once('/') {
-        Some((f, v)) => (f.to_owned(), Some(v.to_owned())),
-        None => (spec.to_owned(), None),
+    let mut out = response_metrics();
+    for step in PACED {
+        out.push(slowest(step.name));
+        out.push(missed(step.name));
     }
-}
-
-/// Returns whether a cell belongs to a side: the framework, and the variant of the side, else
-/// the finest variant the framework has in that scenario.
-fn on_side(c: &CellInfo, fw: &str, variant: &Option<String>, all: &[CellInfo]) -> bool {
-    if c.key.framework != fw {
-        return false;
-    }
-    let variants: Vec<&str> = all
-        .iter()
-        .filter(|x| x.key.framework == fw && x.key.scenario == c.key.scenario)
-        .map(|x| x.key.variant.as_str())
-        .collect();
-    let want = match variant {
-        Some(v) if variants.contains(&v.as_str()) => v.clone(),
-        _ => variants
-            .iter()
-            .min_by_key(|v| palette::variant_rank(v))
-            .map(|v| (*v).to_owned())
-            .unwrap_or_default(),
-    };
-    c.key.variant == want
-}
-
-fn same_point(a: &CellKey, b: &CellKey) -> bool {
-    a.scenario == b.scenario && a.hz == b.hz && a.rows == b.rows && a.updates == b.updates
+    out.extend(KEY.iter().map(|(a, b, c)| MetricRef::new(a, b, c)));
+    out
 }
 
 /// The compare view.
@@ -93,7 +51,7 @@ pub fn CompareView() -> impl IntoView {
         <div class="gx-view">
             <ViewHead
                 title="Compare"
-                text="Every matching cell of A against B: how many times better the better side is, from the medians, with the 95% bootstrap interval over repeats or iterations. Left of 1×: A is better (blue) · right: B is better (orange) · gray hollow: the interval holds 1×. Single values (startup, churn) have no interval; they count as different beyond 1.1×."
+                text="Every matching cell of A against B: how many times better the better side is, from the medians, with the 95% bootstrap interval over repeats or iterations. Left of 1×: A is better (blue) · right: B is better (orange) · gray hollow: the interval holds 1×. Single values have no interval; they count as different beyond 1.1×."
             >
                 <Segmented
                     options=vec![("frameworks".to_owned(), "frameworks".to_owned()), ("runs".to_owned(), "runs".to_owned())]
@@ -124,7 +82,7 @@ pub fn CompareView() -> impl IntoView {
                     if mode.get() == "runs" {
                         return Vec::new();
                     }
-                    let mut out = vec![side(&a_spec.get()).0, side(&b_spec.get()).0];
+                    let mut out = vec![a_spec.get(), b_spec.get()];
                     out.dedup();
                     out
                 });
@@ -171,27 +129,13 @@ pub fn CompareView() -> impl IntoView {
     }
 }
 
-/// The pickers of the two sides: every framework, and each of its variants.
+/// The pickers of the two sides: every framework.
 #[component]
 fn Sides(overview: Arc<RunOverview>, a_spec: Memo<String>, b_spec: Memo<String>) -> impl IntoView {
     let explorer = use_explorer();
     let mut fws = overview.frameworks();
     palette::sort(&mut fws);
-    let mut sides: Vec<(String, String)> = Vec::new();
-    for f in &fws {
-        sides.push((f.clone(), f.clone()));
-        let mut vs: Vec<String> = overview
-            .cells
-            .iter()
-            .filter(|c| c.key.framework == *f && c.key.variant != "default")
-            .map(|c| c.key.variant.clone())
-            .collect();
-        vs.sort_by_key(|v| palette::variant_rank(v));
-        vs.dedup();
-        for v in vs {
-            sides.push((format!("{f}/{v}"), format!("{f} {v}")));
-        }
-    }
+    let sides: Vec<(String, String)> = fws.into_iter().map(|f| (f.clone(), f)).collect();
     let set =
         move |key: &'static str| Callback::new(move |v: String| explorer.query.set(key, Some(v)));
     view! {
@@ -247,8 +191,7 @@ fn Forest(
         let prefs = explorer.prefs.snapshot();
         let runs = mode.get() == "runs";
         let overview = d.overview();
-        let (afw, avar) = side(&a_spec.get());
-        let (bfw, bvar) = side(&b_spec.get());
+        let (afw, bfw) = (a_spec.get(), b_spec.get());
         let (a_label, b_label) = if runs {
             (
                 overview.summary.id.clone(),
@@ -258,10 +201,7 @@ fn Forest(
                     .unwrap_or_default(),
             )
         } else {
-            (
-                a_spec.get().replace('/', " "),
-                b_spec.get().replace('/', " "),
-            )
+            (afw.clone(), bfw.clone())
         };
         let mut pairs: Vec<Pair> = Vec::new();
         for m in metrics.get() {
@@ -279,23 +219,18 @@ fn Forest(
                     continue;
                 }
                 let sb = if runs {
-                    if !prefs.shows_framework(&a_cell.key.framework)
-                        || !prefs.shows_variant(&a_cell.key.variant)
-                    {
+                    if !prefs.shows_framework(&a_cell.key.framework) {
                         continue;
                     }
                     d.ghost(&m, &a_cell.key).cloned()
                 } else {
-                    if !on_side(a_cell, &afw, &avar, &overview.cells) {
+                    if a_cell.key.framework != afw {
                         continue;
                     }
                     overview
                         .cells
                         .iter()
-                        .find(|c| {
-                            same_point(&c.key, &a_cell.key)
-                                && on_side(c, &bfw, &bvar, &overview.cells)
-                        })
+                        .find(|c| c.key.framework == bfw && c.key.same_point(&a_cell.key))
                         .and_then(|c| d.stat(&m, c.id).cloned())
                 };
                 let Some(sb) = sb else { continue };
@@ -326,20 +261,31 @@ fn Forest(
             rated.sort_by(|x, y| y.1.estimate.ln().abs().total_cmp(&x.1.estimate.ln().abs()));
             rows.extend(rated.iter().map(|(p, r)| row(p, *r, &a_label, &b_label)));
         } else {
-            let mut last = String::new();
-            for (p, r) in &rated {
-                let head = if runs {
+            let head_of = |p: &Pair| {
+                if runs {
                     p.a.key.framework.clone()
                 } else {
                     p.a.key.scenario.clone()
-                };
+                }
+            };
+            let mut heads: Vec<String> = Vec::new();
+            for (p, _) in &rated {
+                let head = head_of(p);
+                if !heads.contains(&head) {
+                    heads.push(head);
+                }
+            }
+            rated.sort_by_key(|(p, _)| heads.iter().position(|h| *h == head_of(p)));
+            let mut last = String::new();
+            for (p, r) in &rated {
+                let head = head_of(p);
                 if head != last {
                     rows.push(DotRow::header(head.clone()));
                     last = head;
                 }
                 let mut rw = row(p, *r, &a_label, &b_label);
                 if runs {
-                    rw.label = format!("{} · {}", p.a.key.label(), rw.label);
+                    rw.label = format!("{} · {}", p.a.key.framework, rw.label);
                 }
                 rows.push(rw);
             }

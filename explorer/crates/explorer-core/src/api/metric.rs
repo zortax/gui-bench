@@ -8,10 +8,10 @@ use serde::{Deserialize, Serialize};
 use super::CellId;
 
 /// A metric of a run: the measurement file, the report section and the metric name, such as
-/// `hover.latency.total_p50`.
+/// `hover-row.latency.total_p50`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct MetricRef {
-    /// The measurement, such as `hover`, `op-swap` or `startup`.
+    /// The measurement, such as `hover-row`, `scroll-fling` or `startup`.
     pub measurement: String,
     /// The section of the report, such as `latency` or `resources`.
     pub section: String,
@@ -104,7 +104,7 @@ pub struct Stat {
 }
 
 impl Stat {
-    /// Returns a statistic of one value, such as a startup milestone.
+    /// Returns a statistic of one value.
     pub fn single(value: f64) -> Self {
         Self {
             median: value,
@@ -200,10 +200,10 @@ mod tests {
 
     #[test]
     fn parses_and_prints() {
-        let r = MetricRef::parse("op-swap.latency.total_p50").unwrap();
-        assert_eq!(r.measurement, "op-swap");
-        assert_eq!(r.to_string(), "op-swap.latency.total_p50");
-        assert!(MetricRef::parse("hover.latency").is_none());
+        let r = MetricRef::parse("click-sort.latency.total_p50").unwrap();
+        assert_eq!(r.measurement, "click-sort");
+        assert_eq!(r.to_string(), "click-sort.latency.total_p50");
+        assert!(MetricRef::parse("hover-row.latency").is_none());
     }
 
     #[test]

@@ -7,13 +7,11 @@ use explorer_core::api::RunOverview;
 use leptos::prelude::*;
 
 use super::gaps::GapCards;
-use super::profile::ProfileCard;
+use super::profile::ProfileCard as Profile;
 use super::scaling::FrameScaling;
 use super::source::{SOURCES, Source, metrics};
-use crate::chart::{Legend, LegendItem};
-use crate::palette::{Marker, hz_dash};
 use crate::state::{RunView, Selection, use_explorer, use_param};
-use crate::views::kit::{ScopeBar, ViewHead, WithData, use_scope};
+use crate::views::kit::{ScopeBar, ScopeDefault, StoryLegend, ViewHead, WithData, use_scope};
 use crate::widgets::{Empty, Segmented};
 
 /// The frame-times view.
@@ -25,7 +23,7 @@ pub fn FramesView() -> impl IntoView {
         <div class="gx-view">
             <ViewHead
                 title="Frame times"
-                text="How long each frame takes and where the screen repeats a stale frame, instead of the average frame rate. A frame that misses a refresh shows the last image again; the longest gaps are the stutters."
+                text="Every measurement with continuous frames, of the app and of the list: how long each frame takes and where the screen repeats a stale frame. A frame that misses a refresh shows the last image again; the longest gaps are the stutters."
             >
                 <Segmented
                     options=vec![("ms".to_owned(), "ms".to_owned()), ("refresh".to_owned(), "refreshes".to_owned())]
@@ -42,13 +40,18 @@ pub fn FramesView() -> impl IntoView {
 #[component]
 fn Body(overview: Arc<RunOverview>, per_refresh: Signal<bool>) -> impl IntoView {
     let explorer = use_explorer();
-    let (key, set_key) = use_param("src", "rows.scroll");
+    let (key, set_key) = use_param("src", "app.scroll-fling");
     let present: Vec<Source> = SOURCES
         .iter()
         .copied()
         .filter(|s| s.present(&overview))
         .collect();
-    let first = present.first().copied().unwrap_or(SOURCES[0]);
+    let first = present
+        .iter()
+        .copied()
+        .find(|s| s.measurement == "scroll-fling")
+        .or_else(|| present.first().copied())
+        .unwrap_or(SOURCES[0]);
     let options: Vec<(String, String)> = present
         .iter()
         .map(|s| (s.key(), s.label.to_owned()))
@@ -60,6 +63,7 @@ fn Body(overview: Arc<RunOverview>, per_refresh: Signal<bool>) -> impl IntoView 
     let scope = use_scope(
         overview.clone(),
         Signal::derive(move || source.get().scenario.to_owned()),
+        ScopeDefault::MostCells,
     );
     let ov = overview.clone();
     view! {
@@ -80,38 +84,32 @@ fn Body(overview: Arc<RunOverview>, per_refresh: Signal<bool>) -> impl IntoView 
                     <Empty
                         message=format!("No {} cells shown: the run has none, or the filters hide them.", src.scenario)
                         action="Show every framework"
-                        on_action=Callback::new(move |_| explorer.query.set_all(vec![("hide", None), ("var", None), ("hz", None)]))
+                        on_action=Callback::new(move |_| explorer.query.set_all(vec![("hide", None), ("hz", None)]))
                     />
                 }
                 .into_any();
             }
-            let rates = sel.rates();
-            let mut legend: Vec<LegendItem> = sel.frameworks().iter().map(|f| LegendItem::framework(f)).collect();
-            if rates.len() > 1 {
-                legend.extend(rates.iter().map(|hz| {
-                    LegendItem::encoding(format!("{hz} Hz"), Marker::Circle, Some(hz_dash(*hz).to_owned()), false)
-                }));
-            }
             let ov2 = ov.clone();
             view! {
-                <div class="gx-legendbar"><Legend items=legend/></div>
+                <div class="gx-view__controls"><ScopeBar scope=scope size=false/></div>
+                <StoryLegend overview=ov.clone() scenario=src.scenario/>
                 <section class="gx-section">
                     <h2>"Against size" <span>{src.words}</span></h2>
                     <WithData overview=ov.clone() metrics=Signal::derive(move || metrics(&source.get())) skeletons=4 view=move |data| view! {
                         <div class="gx-grid">
-                            <FrameScaling data=data.clone() source=src metric="interval_p50" title="Typical frame · p50" words="ms per frame, median" per_refresh=per_refresh/>
-                            <FrameScaling data=data.clone() source=src metric="interval_p99" title="Slowest 1 % · p99" words="ms per frame, 99th percentile" per_refresh=per_refresh/>
-                            <FrameScaling data=data.clone() source=src metric="interval_max" title="Longest gap" words="ms between two presents, worst" per_refresh=per_refresh/>
-                            <FrameScaling data=data.clone() source=src metric="stale_refreshes" title="Stale refreshes" words="% of refreshes that repeat the last frame" per_refresh=per_refresh/>
+                            <FrameScaling data=data.clone() source=src scope=scope metric="interval_p50" title="Typical frame · p50" words="ms per frame, median" per_refresh=per_refresh/>
+                            <FrameScaling data=data.clone() source=src scope=scope metric="interval_p99" title="Slowest 1 % · p99" words="ms per frame, 99th percentile" per_refresh=per_refresh/>
+                            <FrameScaling data=data.clone() source=src scope=scope metric="interval_max" title="Longest gap" words="ms between two presents, worst" per_refresh=per_refresh/>
+                            <FrameScaling data=data.clone() source=src scope=scope metric="missed_share" title="Refreshes without a new frame" words="% of the refreshes of the measurement" per_refresh=per_refresh/>
                         </div>
                     }/>
                 </section>
                 <section class="gx-section">
-                    <h2>"One size up close" <span>"every framework at one size and refresh rate"</span></h2>
-                    <div class="gx-view__controls"><ScopeBar scope=scope/></div>
+                    <h2>"One size up close" <span>"every framework at one size and the refresh rate picked above"</span></h2>
+                    <div class="gx-view__controls"><ScopeBar scope=scope rate=false/></div>
                     <WithData overview=ov2.clone() metrics=Signal::derive(move || metrics(&source.get())) skeletons=1 view=move |data| view! {
                         <div class="gx-grid gx-grid--wide">
-                            <ProfileCard data=data source=src scope=scope per_refresh=per_refresh/>
+                            <Profile data=data source=src scope=scope per_refresh=per_refresh/>
                         </div>
                     }/>
                     <div class="gx-grid gx-grid--wide">

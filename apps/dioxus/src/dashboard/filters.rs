@@ -1,17 +1,15 @@
 //! The filter card: a built-in checkbox per status, the compare switch, and the Reset and Apply
-//! buttons. HTML has no switch element, so the switch is a button with the `switch` role and a
-//! knob, as on the web.
+//! buttons.
 
 use dioxus::prelude::*;
 
 use super::View;
 use super::spec::{self, Status};
+use super::switch::Switch;
 
 /// The filters of the orders and the chart.
 #[component]
 pub fn Filters(view: View) -> Element {
-    let mut compare = view.compare;
-    let on = compare();
     rsx! {
         div { class: "card filters",
             span { class: "card__title", {spec::FILTERS_TITLE} }
@@ -22,14 +20,7 @@ pub fn Filters(view: View) -> Element {
             }
             div { class: "compare",
                 span { {spec::COMPARE_LABEL} }
-                button {
-                    class: "switch",
-                    class: if on { "on" },
-                    role: "switch",
-                    aria_checked: on,
-                    onclick: move |_| compare.toggle(),
-                    span { class: "switch__knob" }
-                }
+                Switch { on: view.compare, label: spec::COMPARE_LABEL }
             }
             div { class: "actions",
                 button {

@@ -41,6 +41,7 @@ pub fn LatencyCharts(cell: u32, measurement: String) -> impl IntoView {
 #[component]
 fn Charts(d: LatencyDetail) -> impl IntoView {
     let refresh = d.refresh_ms;
+    let ready = d.commit_to_ready_p50;
     let mut repeats = XyModel::new(
         Axis::linear("input phase in the refresh period", "ms"),
         Axis::value("input to photon", "ms"),
@@ -72,6 +73,11 @@ fn Charts(d: LatencyDetail) -> impl IntoView {
                         "input to commit".to_owned(),
                         x.input_to_commit_ms
                             .map_or("–".to_owned(), |v| format!("{} ms", short(v))),
+                    ),
+                    (
+                        "response time".to_owned(),
+                        x.input_to_commit_ms
+                            .map_or("–".to_owned(), |v| format!("{} ms", short(v + ready))),
                     ),
                 ];
                 Some(p)

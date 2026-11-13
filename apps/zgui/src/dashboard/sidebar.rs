@@ -5,10 +5,9 @@ use zgui::reactive::Selector;
 
 use super::spec;
 
-/// The dark sidebar. A click on a nav item makes it the active one.
+/// The dark sidebar. A click on a nav item makes it the active one, which picks the page.
 #[component]
-pub fn NavSidebar() -> impl IntoView {
-    let active = RwSignal::new(0_usize);
+pub fn NavSidebar(active: RwSignal<usize>) -> impl IntoView {
     let selector = Selector::new(move || active.get());
     view! {
         column(class = "sidebar") {

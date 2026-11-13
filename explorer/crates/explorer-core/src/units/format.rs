@@ -17,9 +17,7 @@ pub fn display(unit: &str) -> Display {
     let (factor, label, words) = match unit {
         "ms" => (1.0, "ms", "milliseconds"),
         "bytes" => (1.0 / MIB, "MiB", "MiB"),
-        "kib" => (1.0, "KiB", "KiB"),
         "ms_per_s" => (1.0, "ms/s", "ms per second"),
-        "ms_per_op" => (1.0, "ms/op", "ms per operation"),
         "per_s" => (1.0, "/s", "per second"),
         "px_per_s" => (1.0, "px/s", "pixels per second"),
         "px" => (1.0, "px", "pixels"),
@@ -58,6 +56,19 @@ pub fn short(value: f64) -> String {
         return group(value.round());
     }
     format!("{:.*}", decimals(value, 3), value)
+}
+
+/// Formats a count in few characters, as the size axes print it: 558, 3.5k, 33k, 1M.
+pub fn compact(value: f64) -> String {
+    if value >= 1_000_000.0 {
+        trim(&format!("{:.2}", value / 1_000_000.0)) + "M"
+    } else if value >= 10_000.0 {
+        format!("{:.0}k", value / 1000.0)
+    } else if value >= 1000.0 {
+        format!("{:.1}k", value / 1000.0).replace(".0k", "k")
+    } else {
+        format!("{value:.0}")
+    }
 }
 
 /// Formats a report value in its display unit, such as `13.2 ms` or `228 MiB`.

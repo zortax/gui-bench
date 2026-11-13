@@ -3,8 +3,7 @@
 
 use freya::prelude::*;
 
-use super::{button_layout, card, primary_button, spec, text};
-use crate::page::color;
+use super::{button_layout, card, color, primary_button, raised, spec, switch, text};
 
 /// The filter card. It reads the status filter; the switch reads the compare state itself.
 #[derive(PartialEq)]
@@ -13,6 +12,7 @@ pub struct Filters {
     pub compare: State<bool>,
     pub series: State<usize>,
     pub search: State<String>,
+    pub sorted: State<bool>,
 }
 
 impl Component for Filters {
@@ -21,6 +21,7 @@ impl Component for Filters {
         let mut compare = self.compare;
         let mut series = self.series;
         let mut search = self.search;
+        let mut sorted = self.sorted;
         let checked = *shown.read();
         let checks = spec::Status::ALL.iter().enumerate().map(|(k, status)| {
             rect()
@@ -49,27 +50,6 @@ impl Component for Filters {
                     spec::TEXT,
                 ))
         });
-        let switch = Switch::new(compare)
-            .theme_colors(
-                SwitchColorsThemePartial::new()
-                    .background(color(spec::SWITCH_OFF))
-                    .thumb_background(color(spec::CARD_BG))
-                    .toggled_background(color(spec::PRIMARY))
-                    .toggled_thumb_background(color(spec::CARD_BG))
-                    .focus_border_fill(color(spec::SPARK)),
-            )
-            .theme_layout(
-                SwitchLayoutThemePartial::new()
-                    .margin(Gaps::new_all(0.0))
-                    .width(spec::SWITCH_WIDTH)
-                    .height(spec::SWITCH_HEIGHT)
-                    .padding(2.0)
-                    .thumb_size(18.0)
-                    .toggled_thumb_size(18.0)
-                    .pressed_thumb_size_offset(0.0)
-                    .thumb_offset(0.0)
-                    .toggled_thumb_offset(spec::SWITCH_WIDTH - 18.0 - 4.0),
-            );
         let reset = Button::new()
             .theme_colors(
                 ButtonColorsThemePartial::new()
@@ -85,6 +65,7 @@ impl Component for Filters {
                 compare.set(false);
                 series.set(0);
                 search.set(String::new());
+                sorted.set(false);
             })
             .child(text(
                 spec::RESET_LABEL,
@@ -119,7 +100,7 @@ impl Component for Filters {
                         FontWeight::NORMAL,
                         spec::TEXT,
                     ))
-                    .child(switch),
+                    .child(switch(compare)),
             )
             .child(
                 rect()
@@ -129,7 +110,10 @@ impl Component for Filters {
                     .main_align(Alignment::End)
                     .spacing(spec::APPLY_X - spec::RESET_X - spec::BUTTON_WIDTH)
                     .child(reset)
-                    .child(primary_button(spec::APPLY_LABEL, spec::BUTTON_WIDTH)),
+                    .child(raised(primary_button(
+                        spec::APPLY_LABEL,
+                        spec::BUTTON_WIDTH,
+                    ))),
             )
     }
 }

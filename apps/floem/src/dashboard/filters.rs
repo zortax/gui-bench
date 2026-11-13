@@ -47,8 +47,8 @@ pub fn view(state: State) -> impl IntoView {
     });
     let spacer = Empty::new().style(|s| s.flex_grow(1.0_f32));
     let buttons = Stack::horizontal((
-        secondary_button(dash::RESET_LABEL, dash::BUTTON_WIDTH, move || state.reset()),
-        primary_button(dash::APPLY_LABEL, dash::BUTTON_WIDTH, || {}),
+        secondary_button(dash::RESET_LABEL, dash::BUTTON_WIDTH).action(move || state.reset()),
+        primary_button(dash::APPLY_LABEL, dash::BUTTON_WIDTH),
     ))
     .style(|s| {
         s.flex_shrink(0.0_f32)
@@ -94,8 +94,8 @@ fn check(label: &'static str, shown: RwSignal<bool>) -> impl IntoView {
     })
 }
 
-/// The compare switch: floem's toggle button as a 40x22 track with an 18 px white knob.
-fn switch(compare: RwSignal<bool>) -> impl IntoView {
+/// A switch: floem's toggle button as a 40x22 track with an 18 px white knob.
+pub fn switch(compare: RwSignal<bool>) -> ToggleButton {
     ToggleButton::new_rw(compare)
         .toggle_style(move |s| {
             let track = if compare.get() {

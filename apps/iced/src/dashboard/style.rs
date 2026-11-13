@@ -1,11 +1,10 @@
 //! The look of the dashboard through iced's style functions: colors and fonts of the spec, and
-//! the container, button and text input styles that every part shares.
+//! the container, button, switch and text input styles that every part shares.
 
-use iced::widget::{button, container, text_input};
-use iced::{Background, Border, Font, Shadow, Vector, border, font};
+use iced::widget::{button, container, text_input, toggler};
+use iced::{Background, Border, Color, Font, Shadow, Vector, border, font};
 
 use super::spec;
-use crate::page::color;
 
 /// The 600 and 700 weights of the default sans-serif font.
 pub const SEMIBOLD: Font = Font {
@@ -16,6 +15,11 @@ pub const BOLD: Font = Font {
     weight: font::Weight::Bold,
     ..Font::DEFAULT
 };
+
+/// Returns a color of the spec.
+pub fn color(hex: u32) -> Color {
+    Color::from_rgb8((hex >> 16) as u8, (hex >> 8) as u8, hex as u8)
+}
 
 /// Returns a shadow of the spec.
 pub fn shadow(shadow: spec::Shadow) -> Shadow {
@@ -94,5 +98,25 @@ pub fn input(_: &iced::Theme, status: text_input::Status) -> text_input::Style {
         placeholder: color(spec::SIDEBAR_MUTED),
         value: color(spec::TEXT),
         selection: color(spec::SPARK),
+    }
+}
+
+/// The switch: a gray track when off, the primary color when on, and a white knob 2 px inside.
+pub fn switch(_: &iced::Theme, status: toggler::Status) -> toggler::Style {
+    let on = match status {
+        toggler::Status::Active { is_toggled }
+        | toggler::Status::Hovered { is_toggled }
+        | toggler::Status::Disabled { is_toggled } => is_toggled,
+    };
+    toggler::Style {
+        background: Background::Color(color(if on { spec::PRIMARY } else { spec::SWITCH_OFF })),
+        background_border_width: 0.0,
+        background_border_color: color(spec::SWITCH_OFF),
+        foreground: Background::Color(color(0xffffff)),
+        foreground_border_width: 0.0,
+        foreground_border_color: color(0xffffff),
+        text_color: None,
+        border_radius: None,
+        padding_ratio: 2.0 / spec::SWITCH_HEIGHT,
     }
 }

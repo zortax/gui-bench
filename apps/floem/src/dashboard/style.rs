@@ -6,7 +6,24 @@ use floem::style::Style;
 use floem::text::FontWeight;
 
 use crate::dash::{self, Shadow};
-pub use crate::page::color;
+
+/// The font family of all text.
+const FONT_FAMILY: &str = "sans-serif";
+
+/// Returns a spec color.
+pub const fn color(hex: u32) -> Color {
+    Color::from_rgb8((hex >> 16) as u8, (hex >> 8) as u8, hex as u8)
+}
+
+/// The look of the window content: the page background and the font that every text inherits.
+pub fn window(s: Style) -> Style {
+    s.size_full()
+        .background(color(dash::PAGE_BG))
+        .color(color(dash::TEXT))
+        .font_family(FONT_FAMILY.to_owned())
+        .font_size(px(dash::FONT_SIZE))
+        .selectable(false)
+}
 
 /// Returns a length of the spec as a floem length value.
 pub fn px(value: f32) -> f64 {
@@ -49,13 +66,16 @@ impl Weight {
     }
 }
 
+/// Gives a text `size` px, `weight` and the spec color `hex`.
+pub fn font(s: Style, size: f32, weight: Weight, hex: u32) -> Style {
+    s.font_size(px(size))
+        .font_weight(weight.font())
+        .color(color(hex))
+}
+
 /// Returns a static text in `size` px, `weight` and the spec color `hex`.
 pub fn text(content: impl std::fmt::Display, size: f32, weight: Weight, hex: u32) -> Label {
-    Label::new(content).style(move |s| {
-        s.font_size(px(size))
-            .font_weight(weight.font())
-            .color(color(hex))
-    })
+    Label::new(content).style(move |s| font(s, size, weight, hex))
 }
 
 /// A pill: a rounded box of `height` around its text, `padding_x` on each side.

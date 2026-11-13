@@ -6,7 +6,7 @@ use explorer_core::units::short;
 use leptos::prelude::*;
 
 use super::latency::LatencyCharts;
-use super::series::{FrameCharts, PhaseChart, ResizeCharts, TypingCharts};
+use super::series::{FrameCharts, PhaseChart, ResizeCharts};
 use crate::widgets::StatusDot;
 
 /// The panel of one measurement.
@@ -16,7 +16,6 @@ pub fn MeasurementPanel(cell: u32, measurement: MeasurementDetail) -> impl IntoV
     let has = |s: &str| m.sections.iter().any(|x| x == s);
     let latency = has("latency");
     let frames = has("scroll_smoothness") || has("frame_pacing");
-    let typing = has("typing");
     let resize = has("resize");
     let name = m.name.clone();
     view! {
@@ -63,7 +62,6 @@ pub fn MeasurementPanel(cell: u32, measurement: MeasurementDetail) -> impl IntoV
             </div>
             {latency.then(|| view! { <LatencyCharts cell=cell measurement=name.clone()/> })}
             {frames.then(|| view! { <FrameCharts cell=cell measurement=name.clone()/> })}
-            {typing.then(|| view! { <TypingCharts cell=cell measurement=name.clone()/> })}
             {resize.then(|| view! { <ResizeCharts cell=cell measurement=name.clone()/> })}
             <PhaseChart cell=cell measurement=name.clone()/>
         </div>

@@ -1,16 +1,20 @@
-//! The top bar: the page title on the left; freya's `Input` for the search, the export button
-//! and the avatar on the right.
+//! The top bar: the title of the page on the left; freya's `Input` for the search, the live
+//! switch with its spinner, the export menu and the avatar on the right.
 
 use freya::prelude::*;
 
-use super::{avatar, primary_button, spec, text};
-use crate::page::{bottom_border, color};
+use super::live::LiveSpinner;
+use super::menu::ExportMenu;
+use super::{avatar, bottom_border, color, spec, switch, text};
 
-/// The top bar. The input reads and writes the search state itself, so typing renders the input
-/// and the orders, not the bar.
+/// The top bar. It reads the active nav item for its title. The input reads and writes the
+/// search state itself, and the switch and the spinner the live state, so typing and the live
+/// switch do not render the bar.
 #[derive(PartialEq)]
 pub struct TopBar {
+    pub active: State<usize>,
     pub search: State<String>,
+    pub live: State<bool>,
 }
 
 impl Component for TopBar {
@@ -33,9 +37,10 @@ impl Component for TopBar {
                     .corner_radius(8.0)
                     .padding(Gaps::new(0.0, 12.0, 0.0, 12.0)),
             );
-        let end = spec::WINDOW.0 - spec::CONTENT_PADDING;
-        let avatar_gap = end - spec::CONTROL_HEIGHT - (spec::EXPORT_X + spec::EXPORT_WIDTH);
-        let export_gap = spec::EXPORT_X - (spec::SEARCH_X + spec::SEARCH_WIDTH);
+        let search_end = spec::SEARCH_X + spec::SEARCH_WIDTH;
+        let switch_end = spec::LIVE_X + spec::SWITCH_WIDTH;
+        let spinner_end = spec::SPINNER_X + spec::SPINNER_SIZE;
+        let export_end = spec::EXPORT_X + spec::EXPORT_WIDTH;
 
         rect()
             .horizontal()
@@ -52,7 +57,7 @@ impl Component for TopBar {
             .background(color(spec::TOPBAR_BG))
             .border(bottom_border(spec::RULE))
             .child(text(
-                spec::PAGE_TITLE,
+                spec::NAV_ITEMS[*self.active.read()],
                 spec::TITLE_FONT + 4.0,
                 FontWeight::SEMI_BOLD,
                 spec::TEXT,
@@ -62,11 +67,13 @@ impl Component for TopBar {
                     .horizontal()
                     .cross_align(Alignment::Center)
                     .child(input)
-                    .child(
-                        rect()
-                            .margin(Gaps::new(0.0, avatar_gap, 0.0, export_gap))
-                            .child(primary_button(spec::EXPORT_LABEL, spec::EXPORT_WIDTH)),
-                    )
+                    .child(gap(spec::LIVE_X - search_end))
+                    .child(switch(self.live))
+                    .child(gap(spec::SPINNER_X - switch_end))
+                    .child(LiveSpinner { live: self.live })
+                    .child(gap(spec::EXPORT_X - spinner_end))
+                    .child(ExportMenu)
+                    .child(gap(spec::TOPBAR_AVATAR_X - export_end))
                     .child(avatar(
                         spec::USER_INITIALS,
                         spec::CONTROL_HEIGHT,
@@ -75,4 +82,9 @@ impl Component for TopBar {
                     )),
             )
     }
+}
+
+/// Returns the empty space of `width` between two controls.
+fn gap(width: f32) -> Rect {
+    rect().width(Size::px(width))
 }

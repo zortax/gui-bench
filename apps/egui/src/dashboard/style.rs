@@ -14,14 +14,19 @@ use crate::font;
 
 /// Returns the egui color of a spec color.
 pub const fn color(color: u32) -> Color32 {
-    let (r, g, b) = crate::spec::rgb(color);
+    let (r, g, b) = rgb(color);
     Color32::from_rgb(r, g, b)
+}
+
+/// Returns the red, green and blue of a `0xrrggbb` color.
+const fn rgb(color: u32) -> (u8, u8, u8) {
+    ((color >> 16) as u8, (color >> 8) as u8, color as u8)
 }
 
 /// Returns the egui shadow of a spec shadow. A CSS blur radius blurs the edge over twice its
 /// length, and the blur of an epaint shadow is the whole width of that penumbra.
 pub fn shadow(shadow: spec::Shadow) -> Shadow {
-    let (r, g, b) = crate::spec::rgb(shadow.color);
+    let (r, g, b) = rgb(shadow.color);
     Shadow {
         offset: [shadow.x as i8, shadow.y as i8],
         blur: (2.0 * shadow.blur) as u8,

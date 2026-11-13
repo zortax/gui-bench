@@ -11,13 +11,12 @@ use serde_json::Value;
 use super::json::{count, flag, iterations, num, pooled, refresh_ms, report, section};
 use crate::store::RunData;
 
-/// A matrix point: the cells of every framework and variant at one size and refresh rate.
+/// A matrix point: the cells of every framework at one size and refresh rate.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Point {
     pub scenario: String,
     pub hz: f64,
     pub rows: u32,
-    pub updates: Option<u32>,
 }
 
 fn records<'a>(v: &'a Value, key: &str) -> impl Iterator<Item = &'a Value> {
@@ -160,10 +159,7 @@ impl RunData {
             .cells
             .iter()
             .filter(|c| {
-                c.key.scenario == point.scenario
-                    && c.key.hz == point.hz
-                    && c.key.rows == point.rows
-                    && c.key.updates == point.updates
+                c.key.scenario == point.scenario && c.key.hz == point.hz && c.key.rows == point.rows
             })
             .map(|c| (c.id, self.dir.join(&c.dir)))
             .collect();

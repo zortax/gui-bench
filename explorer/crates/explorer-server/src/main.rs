@@ -1,11 +1,13 @@
 //! The explorer server: it renders the explorer pages, answers the server functions from the
 //! run store, and serves the cell files (screenshots, app logs), the fonts and the site assets.
+//! `/healthz` answers `ok` for probes, and the server stops cleanly on SIGTERM.
 
 #![forbid(unsafe_code)]
 #![recursion_limit = "512"]
 
 mod files;
 
+use std::io::IsTerminal;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -42,6 +44,8 @@ async fn main() -> anyhow::Result<()> {
             tracing_subscriber::EnvFilter::try_from_default_env()
                 .unwrap_or_else(|_| "info,explorer_data=info".into()),
         )
+        // Colors only on a terminal: the log of a container stays plain text.
+        .with_ansi(std::io::stdout().is_terminal())
         .init();
     let args = Args::parse();
     let results = args.results.unwrap_or_else(|| repo_root().join("results"));
@@ -67,6 +71,7 @@ async fn main() -> anyhow::Result<()> {
     let pkg = site.join(options.site_pkg_dir.as_ref());
     // Static paths come before the routes, since `/:run/:view` would match them too.
     let app = Router::new()
+        .route("/healthz", get(|| async { "ok" }))
         .route("/files/{run}/{cell}/{file}", get(files::serve))
         .nest_service("/fonts", ServeDir::new(fonts))
         .nest_service("/type", ServeDir::new(site.join("type")))
@@ -90,6 +95,29 @@ async fn main() -> anyhow::Result<()> {
         .layer(CompressionLayer::new());
     tracing::info!("listening on http://{addr}");
     let listener = tokio::net::TcpListener::bind(&addr).await?;
-    axum::serve(listener, app.into_make_service()).await?;
+    axum::serve(listener, app.into_make_service())
+        .with_graceful_shutdown(shutdown())
+        .await?;
     Ok(())
+}
+
+/// Resolves when the process is asked to stop: on Ctrl-C, or on SIGTERM, which a container
+/// runtime sends before it kills the process. The server then finishes its open requests.
+async fn shutdown() {
+    let interrupt = async {
+        let _ = tokio::signal::ctrl_c().await;
+    };
+    let terminate = async {
+        match tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()) {
+            Ok(mut signal) => {
+                signal.recv().await;
+            }
+            Err(_) => std::future::pending::<()>().await,
+        }
+    };
+    tokio::select! {
+        () = interrupt => {}
+        () = terminate => {}
+    }
+    tracing::info!("stopping");
 }

@@ -13,7 +13,7 @@ use crate::error::read_json;
 /// A run index that changed within this time counts as live.
 const LIVE: Duration = Duration::from_secs(180);
 /// The run format the explorer reads.
-pub const FORMAT: u32 = 2;
+pub const FORMAT: u32 = 3;
 
 /// A run in the catalog, with its directory and the last write of its index.
 #[derive(Debug, Clone)]

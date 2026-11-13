@@ -101,16 +101,6 @@ pub async fn frames_detail(
     backend::with_run(run, move |data| data.frames_detail(cell, &measurement)).await
 }
 
-/// Returns the typed keys of a measurement of a cell.
-#[server(input = GetUrl)]
-pub async fn typing_detail(
-    run: String,
-    cell: u32,
-    measurement: String,
-) -> Result<wire::TypingDetail, ServerFnError> {
-    backend::with_run(run, move |data| data.typing_detail(cell, &measurement)).await
-}
-
 /// Returns the configures of a resize measurement of a cell.
 #[server(input = GetUrl)]
 pub async fn resize_detail(
@@ -138,8 +128,7 @@ pub async fn phases_detail(
     .await
 }
 
-/// Returns the frame profiles of a measurement in every cell of a matrix point. `updates` is the
-/// ticker updates per tick, zero for other scenarios.
+/// Returns the frame profiles of a measurement in every cell of a matrix point.
 #[server(input = GetUrl)]
 pub async fn frame_profiles(
     run: String,
@@ -147,14 +136,8 @@ pub async fn frame_profiles(
     measurement: String,
     hz: f64,
     rows: u32,
-    #[server(default)] updates: u32,
 ) -> Result<Vec<wire::FrameProfile>, ServerFnError> {
-    let point = explorer_data::Point {
-        scenario,
-        hz,
-        rows,
-        updates: (updates > 0).then_some(updates),
-    };
+    let point = explorer_data::Point { scenario, hz, rows };
     backend::with_run(run, move |data| {
         Ok(data.frame_profiles(&point, &measurement))
     })

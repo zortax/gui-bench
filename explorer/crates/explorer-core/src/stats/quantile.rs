@@ -1,5 +1,5 @@
 //! Quantiles by the nearest-rank rule that the gui-bench plots use: the value at
-//! `round((n - 1) * q)` of the sorted values.
+//! `round((n - 1) * q)` of the sorted values, with ties rounded to the even index.
 
 /// Returns the finite values in ascending order.
 pub fn sorted(values: &[f64]) -> Vec<f64> {
@@ -14,7 +14,7 @@ pub fn quantile(sorted: &[f64], q: f64) -> Option<f64> {
         return None;
     }
     let last = sorted.len() - 1;
-    let index = ((last as f64) * q.clamp(0.0, 1.0)).round() as usize;
+    let index = ((last as f64) * q.clamp(0.0, 1.0)).round_ties_even() as usize;
     Some(sorted[index.min(last)])
 }
 
@@ -40,6 +40,8 @@ mod tests {
         assert_eq!(quantile(&s, 0.25), Some(2.0));
         assert_eq!(quantile(&s, 1.0), Some(5.0));
         assert_eq!(quantile(&[], 0.5), None);
+        assert_eq!(quantile(&[1.0, 2.0], 0.5), Some(1.0));
+        assert_eq!(quantile(&[1.0, 2.0, 3.0, 4.0], 0.5), Some(3.0));
     }
 
     #[test]

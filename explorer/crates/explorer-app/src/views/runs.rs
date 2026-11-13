@@ -127,8 +127,8 @@ fn Diff(a: Arc<RunOverview>, b: Arc<RunOverview>) -> impl IntoView {
     let eb = pb.environment.clone().unwrap_or_default();
     let effort = |p: &explorer_core::api::Provenance| {
         format!(
-            "{:?} it · {:?} hover · {:?} op · {:?} churn",
-            p.effort.iterations, p.effort.hover_repeats, p.effort.op_repeats, p.effort.churn_cycles
+            "{:?} it · {:?} hover · {:?} op · {:?} launches",
+            p.effort.iterations, p.effort.hover_repeats, p.effort.op_repeats, p.effort.launches
         )
         .replace("Some(", "")
         .replace(')', "")

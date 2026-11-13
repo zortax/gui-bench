@@ -1,8 +1,8 @@
-//! The frame, typing, resize and phase series of a cell.
+//! The frame, resize and phase series of a cell.
 
 use explorer_core::api::{
-    CellId, ConfigureRecord, FrameIteration, FrameStep, FramesDetail, KeyRecord, PacingIteration,
-    PhaseSpan, PhasesDetail, ResizeDetail, ResizeIteration, TypingDetail, TypingIteration,
+    CellId, ConfigureRecord, FrameIteration, FrameStep, FramesDetail, PacingIteration, PhaseSpan,
+    PhasesDetail, ResizeDetail, ResizeIteration,
 };
 use serde_json::Value;
 
@@ -64,41 +64,6 @@ impl RunData {
             measurement: measurement.to_owned(),
             scroll,
             pacing,
-            refresh_ms: refresh_ms(&report),
-        })
-    }
-
-    /// Returns the typed keys of a measurement per iteration.
-    pub fn typing_detail(&self, id: CellId, measurement: &str) -> Result<TypingDetail, DataError> {
-        let report = report(&self.cell_dir(id)?, measurement)?;
-        let iterations = iterations(section(&report, "typing"))
-            .into_iter()
-            .map(|(index, it)| {
-                let start = records(it, "per_key")
-                    .find_map(|k| num(k, "sent"))
-                    .unwrap_or(0.0);
-                TypingIteration {
-                    index,
-                    keys: records(it, "per_key")
-                        .map(|k| KeyRecord {
-                            t_ms: ms_since(k, "sent", start).unwrap_or(0.0),
-                            key: k
-                                .get("key")
-                                .and_then(Value::as_str)
-                                .unwrap_or("")
-                                .to_owned(),
-                            latency_ms: num(k, "latency_ms"),
-                            handling_ms: num(k, "handling_ms"),
-                            backlog: count(k, "backlog"),
-                        })
-                        .collect(),
-                    latency_slope_ms_per_key: num(it, "latency_slope_ms_per_key"),
-                }
-            })
-            .collect();
-        Ok(TypingDetail {
-            measurement: measurement.to_owned(),
-            iterations,
             refresh_ms: refresh_ms(&report),
         })
     }

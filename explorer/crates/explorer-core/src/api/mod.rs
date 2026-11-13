@@ -8,17 +8,17 @@ mod metric;
 mod provenance;
 mod run;
 
-pub use cell::{CellId, CellInfo, CellKey, CheckStatus, MeasurementHealth};
+pub use cell::{CellId, CellInfo, CellKey, CheckStatus, MeasurementHealth, Part};
 pub use detail::{
     CellDetail, Check, ConfigureRecord, FrameIteration, FrameStep, FramesDetail, HistogramBin,
-    IterationInfo, KeyRecord, LatencyDetail, LatencyIteration, LatencySample, MeasurementDetail,
+    IterationInfo, LatencyDetail, LatencyIteration, LatencySample, Launch, MeasurementDetail,
     PacingIteration, PhaseBin, PhaseSpan, PhasesDetail, ResizeDetail, ResizeIteration, Stage,
-    Startup, Summary, TypingDetail, TypingIteration,
+    Summary,
 };
 pub use frames::{FrameProfile, FrameQuantiles, GapFrame, GapLane};
 pub use metric::{Better, MetricColumn, MetricInfo, MetricRef, Stat};
 pub use provenance::{
-    CheckTally, Effort, Environment, FrameworkVersion, Invocation, Provenance, Revision,
-    ValidityTally,
+    Build, CheckTally, Effort, Environment, Flag, FrameworkVersion, Invocation, Provenance,
+    Revision, ScrollSetup, ValidityTally,
 };
 pub use run::{RunOverview, RunStatus, RunSummary};

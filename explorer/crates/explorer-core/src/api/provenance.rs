@@ -1,4 +1,4 @@
-//! Where a run comes from: its revisions, effort, host environment, output and framework
+//! Where a run comes from: its revisions, effort, host environment, output, builds and framework
 //! versions, and how many of its reports pass their validity checks.
 
 use serde::{Deserialize, Serialize};
@@ -21,10 +21,43 @@ pub struct Effort {
     pub iterations: Option<u32>,
     /// Hover repeats per iteration.
     pub hover_repeats: Option<u32>,
-    /// Repeats per iteration of the table operations and the search probe.
+    /// Repeats per iteration of the click and key probes.
     pub op_repeats: Option<u32>,
-    /// Replacements in the churn measurement.
-    pub churn_cycles: Option<u32>,
+    /// App launches of the startup measurement.
+    pub launches: Option<u32>,
+    /// How often a measurement runs again when the host disturbs it.
+    pub retries: Option<u32>,
+}
+
+/// A part of the scenarios that an app builds by hand, since its framework has none.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Flag {
+    /// The part, such as `menu`, `spinner` or `list`.
+    pub part: String,
+    /// What the app does, and why.
+    pub note: String,
+}
+
+/// The build of one framework or edition.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Build {
+    /// The framework or edition.
+    pub framework: String,
+    /// The app directory that the build comes from.
+    pub app: String,
+    /// The size of the release binary in bytes.
+    pub binary_bytes: Option<u64>,
+    /// The parts the app builds by hand.
+    pub flags: Vec<Flag>,
+}
+
+/// The scroll inputs of a run: velocities in pixels per second and the length in seconds.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct ScrollSetup {
+    pub glide_velocity: Option<f64>,
+    pub wheel_velocity: Option<f64>,
+    pub fling_velocity: Option<f64>,
+    pub seconds: Option<f64>,
 }
 
 /// The host that ran the run, as the bench reports record it.
@@ -90,12 +123,14 @@ pub struct Provenance {
     pub output: Option<(u32, u32)>,
     /// The output name, make and model of the faked display.
     pub monitor: Option<String>,
-    /// The row height in pixels.
-    pub row_height: Option<u32>,
-    /// The scroll velocity in pixels per second and the glide length in seconds.
-    pub scroll: Option<(f64, f64)>,
-    /// The ticker interval in milliseconds.
-    pub tick_ms: Option<u32>,
+    /// The refresh rate of every cell and the rate of the second pass of the pacing steps.
+    pub hz: Option<(f64, f64)>,
+    /// The scroll inputs.
+    pub scroll: Option<ScrollSetup>,
+    /// The elements of the app without orders, and the elements per order.
+    pub elements: Option<(u32, u32)>,
+    /// The build of every framework: its binary size and the parts its app builds by hand.
+    pub builds: Vec<Build>,
     /// The scenarios the run selects.
     pub scenarios: Vec<String>,
     /// The frameworks the run selects.
@@ -110,6 +145,32 @@ pub struct Provenance {
     pub accessibility: Option<bool>,
     /// Every invocation of the runner that wrote cells of the run, oldest first.
     pub history: Vec<Invocation>,
+}
+
+impl Provenance {
+    /// Returns the refresh rate of every cell.
+    pub fn main_hz(&self) -> f64 {
+        self.hz.map_or(144.0, |(main, _)| main)
+    }
+
+    /// Returns the note of a part that the app of a framework builds by hand.
+    pub fn flagged(&self, framework: &str, part: &str) -> Option<&str> {
+        self.builds
+            .iter()
+            .find(|b| b.framework == framework)?
+            .flags
+            .iter()
+            .find(|f| f.part == part)
+            .map(|f| f.note.as_str())
+    }
+
+    /// Returns the size of the release binary of a framework in bytes.
+    pub fn binary_bytes(&self, framework: &str) -> Option<u64> {
+        self.builds
+            .iter()
+            .find(|b| b.framework == framework)?
+            .binary_bytes
+    }
 }
 
 /// One invocation of the runner: a run grows by scenarios when the runner resumes it.

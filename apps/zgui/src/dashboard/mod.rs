@@ -1,5 +1,7 @@
-//! The dashboard scenario: a sidebar with nav, a top bar with the search, and one scroll container
-//! with the metric cards, the revenue chart, the filters and the orders table (`dashboard.rs`).
+//! The app scenario: a sidebar with nav, a top bar with the search, the live switch and the
+//! export menu, and one scroll container with the page of the active nav item: the overview (the
+//! metric cards, the revenue chart, the filters and the orders table), the messages feed, or an
+//! empty page (`dashboard.rs`).
 //!
 //! The controls are `zgui-ui` components under one `ThemeProvider`, whose tokens take the colors
 //! of the spec; everything else is plain elements styled by `dashboard.css`.
@@ -7,10 +9,13 @@
 mod chart;
 mod filters;
 mod kpis;
+mod list;
+mod live;
+mod messages;
 mod orders;
 mod sidebar;
 #[path = "../../../shared/dashboard.rs"]
-mod spec;
+pub mod spec;
 mod topbar;
 
 use zgui::prelude::*;
@@ -21,15 +26,19 @@ use zgui_ui_tokens::prelude::*;
 use self::chart::RevenueChartProps;
 use self::filters::FilterCardProps;
 use self::kpis::MetricCardsProps;
+pub use self::list::OrderListProps;
+use self::live::Live;
+use self::messages::MessageFeedProps;
 use self::orders::OrdersTableProps;
 use self::sidebar::NavSidebarProps;
+use self::spec::Page;
 use self::topbar::TopBarProps;
 
 /// The look of the whole dashboard.
 pub const SHEET: &str = include_str!("dashboard.css");
 
 /// The tokens of the component library that differ from its default light theme.
-const TOKENS: &str = "
+pub(self) const TOKENS: &str = "
     --zui-color-primary: #4f46e5;
     --zui-color-primary-foreground: #ffffff;
     --zui-color-foreground: #111827;
@@ -53,6 +62,8 @@ pub struct Filters {
     pub compare: RwSignal<bool, LocalStorage>,
     /// The selected segment, an index of `SEGMENTS`.
     pub segment: RwSignal<usize, LocalStorage>,
+    /// Whether the orders are sorted by amount.
+    pub sorted: RwSignal<bool>,
 }
 
 impl Filters {
@@ -63,6 +74,7 @@ impl Filters {
             shown: std::array::from_fn(|_| RwSignal::new_local(Checked::Yes)),
             compare: RwSignal::new_local(false),
             segment: RwSignal::new_local(0),
+            sorted: RwSignal::new(false),
         }
     }
 
@@ -74,6 +86,7 @@ impl Filters {
         self.compare.set(false);
         self.segment.set(0);
         self.search.set(String::new());
+        self.sorted.set(false);
     }
 
     /// Reads which statuses are shown, tracked.
@@ -82,24 +95,37 @@ impl Filters {
     }
 }
 
-/// The dashboard with `count` orders.
+/// The dashboard with `count` orders and `count` messages.
 #[component]
 pub fn Dashboard(count: usize) -> impl IntoView {
     let filters = Filters::new();
+    let active = RwSignal::new(0_usize);
+    let live = Live::new();
+    let page = Memo::new(move |_| spec::page(active.get()));
     view! {
         ThemeProvider(light = Theme::light().with_css(TOKENS), scheme = ColorScheme::Light) {
             row(class = "dash") {
-                NavSidebar()
+                NavSidebar(active = active)
                 column(class = "main") {
-                    TopBar(filters = filters)
+                    TopBar(filters = filters, active = active, live = live)
                     scroll(class = "content") {
-                        column(class = "content__body") {
-                            MetricCards()
-                            row(class = "row2") {
-                                RevenueChart(filters = filters)
-                                FilterCard(filters = filters)
+                        if move || page.get() == Page::Overview {
+                            column(class = "content__body") {
+                                MetricCards(live = live)
+                                row(class = "row2") {
+                                    RevenueChart(filters = filters)
+                                    FilterCard(filters = filters)
+                                }
+                                OrdersTable(count = count, filters = filters)
                             }
-                            OrdersTable(count = count, filters = filters)
+                        } else {
+                            if move || page.get() == Page::Messages {
+                                MessageFeed(count = count)
+                            } else {
+                                column(class = "content__body empty") {
+                                    text(class = "empty__label") {{spec::EMPTY_LABEL}}
+                                }
+                            }
                         }
                     }
                 }

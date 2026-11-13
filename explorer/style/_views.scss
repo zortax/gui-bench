@@ -1,5 +1,8 @@
 // View styles.
 .gx-legendbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   position: sticky;
   top: calc(var(--top) + var(--tabs));
   z-index: 10;
@@ -7,6 +10,15 @@
   background: var(--page);
   .gx-legend {
     margin: 0;
+  }
+}
+
+// The run info lists revisions, versions and invocations, which need more room than other
+// popovers.
+.gx-pop__panel:has(.gx-prov) {
+  max-width: min(94vw, 920px);
+  .gx-prov {
+    width: min(90vw, 880px);
   }
 }
 
@@ -184,29 +196,42 @@
   overflow-wrap: anywhere;
 }
 
-.gx-drawer__top {
+.gx-drawer__shots {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 12px;
-  align-items: start;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 180px), 1fr));
+  gap: 8px;
+}
+
+.gx-drawer__shot {
+  display: grid;
+  gap: 2px;
+  font-size: var(--fs-s);
+  text-decoration: none;
 }
 
 .gx-drawer__shot img {
   display: block;
   width: 100%;
-  max-height: 260px;
-  object-fit: contain;
-  object-position: left top;
   border-radius: var(--r);
   box-shadow: 0 0 0 1px var(--float-border);
   background: var(--surface);
 }
 
 .gx-drawer__startup {
-  min-width: 190px;
   padding: 8px 10px;
   border-radius: var(--r-l);
   background: var(--surface);
+}
+
+.gx-builds__flags > div {
+  padding: 1px 0;
+  overflow-wrap: anywhere;
+}
+
+.gx-legendbar__note {
+  margin-left: 12px;
+  font-size: var(--fs-s);
+  color: var(--muted);
 }
 
 .gx-drawer__tabs .gx-seg {

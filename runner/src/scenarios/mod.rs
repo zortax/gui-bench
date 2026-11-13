@@ -1,71 +1,37 @@
-//! The scenarios: what each one asks the app to show, at which refresh rates and sizes it runs,
-//! which variants a framework has for it, and what it measures. `Cell` names one point of the
-//! matrix and its directory in the run.
+//! The scenarios: what each one asks the app to show, at which sizes it runs and what it
+//! measures. `Cell` names one point of the matrix and its directory in the run.
 
 mod measure;
 
 use serde::Serialize;
 
-use crate::frameworks::Framework;
-use crate::layout::Page;
+/// The refresh rate of every cell.
+pub const MAIN_HZ: f64 = 144.0;
+/// The refresh rate of the second pass of the pacing steps, for cells that miss refreshes at
+/// `MAIN_HZ`.
+pub const SLOW_HZ: f64 = 60.0;
 
 /// One scenario of the matrix.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Kind {
-    /// N real rows in one scroll container: hover and scroll.
-    Rows,
-    /// A keyed table and its operations: select, update, swap, remove, insert, replace, append,
-    /// clear, and a churn of replacements.
-    Table,
-    /// A table whose rows and header a timer updates every 16 ms.
-    Ticker,
-    /// A turning spinner above static rows.
-    Spinner,
-    /// A focused text input above static rows.
-    Typing,
-    /// A focused text input that filters the rows.
-    Search,
-    /// The rows of `Rows` in the framework's virtualized list.
-    Virtual,
-    /// The rows app under a resize storm and a scale switch.
-    Resize,
-    /// The analytics dashboard: hover a nav item and an order row, click the compare switch and a
-    /// status filter, scroll the content.
-    Dashboard,
-    /// The dashboard under a resize storm and a scale switch.
-    #[serde(rename = "dashboard-resize")]
-    DashboardResize,
+    /// The workbench app of `apps/shared/dashboard.rs` with N orders and N messages, all real
+    /// elements: responses to hover, clicks and keys, scrolling, resizing, live updates and page
+    /// switches.
+    App,
+    /// The order rows in the framework's virtual list, with N rows of data.
+    List,
 }
 
 impl Kind {
     /// Every scenario in run order.
-    pub const ALL: [Kind; 10] = [
-        Kind::Rows,
-        Kind::Table,
-        Kind::Ticker,
-        Kind::Spinner,
-        Kind::Typing,
-        Kind::Search,
-        Kind::Virtual,
-        Kind::Resize,
-        Kind::Dashboard,
-        Kind::DashboardResize,
-    ];
+    pub const ALL: [Kind; 2] = [Kind::App, Kind::List];
 
-    /// Returns the name in results and on the command line.
+    /// Returns the name in results, on the command line and for the app.
     pub fn name(self) -> &'static str {
         match self {
-            Kind::Rows => "rows",
-            Kind::Table => "table",
-            Kind::Ticker => "ticker",
-            Kind::Spinner => "spinner",
-            Kind::Typing => "typing",
-            Kind::Search => "search",
-            Kind::Virtual => "virtual",
-            Kind::Resize => "resize",
-            Kind::Dashboard => "dashboard",
-            Kind::DashboardResize => "dashboard-resize",
+            Kind::App => "app",
+            Kind::List => "list",
         }
     }
 
@@ -74,79 +40,42 @@ impl Kind {
         Kind::ALL.into_iter().find(|k| k.name() == name)
     }
 
-    /// Returns the scenario the app shows.
-    fn app_scenario(self) -> &'static str {
-        match self {
-            Kind::Resize => "rows",
-            Kind::DashboardResize => "dashboard",
-            other => other.name(),
-        }
-    }
-
-    /// Returns where the rows start.
-    pub fn page(self) -> Page {
-        match self {
-            Kind::Rows | Kind::Virtual | Kind::Resize => Page::Rows,
-            Kind::Dashboard | Kind::DashboardResize => Page::Dashboard,
-            _ => Page::Header,
-        }
-    }
-
-    /// Returns true when the app draws all the time, so its window never settles.
-    pub fn animates(self) -> bool {
-        matches!(self, Kind::Ticker | Kind::Spinner)
-    }
-
-    /// Returns the default refresh rates.
-    pub fn rates(self, quick: bool) -> Vec<f64> {
-        match self {
-            _ if quick => vec![60.0],
-            Kind::Rows | Kind::Ticker | Kind::Spinner | Kind::Virtual | Kind::Dashboard => {
-                vec![60.0, 144.0]
-            }
-            Kind::Table | Kind::Typing | Kind::Search | Kind::Resize | Kind::DashboardResize => {
-                vec![60.0]
-            }
-        }
-    }
-
-    /// Returns the default row counts.
+    /// Returns the default row counts, smallest first.
     pub fn row_counts(self, quick: bool) -> Vec<u32> {
         match (self, quick) {
-            (Kind::Rows, false) => vec![10, 100, 300, 1000, 3000, 10000],
-            (Kind::Rows, true) => vec![100, 3000],
-            (Kind::Table | Kind::Ticker | Kind::Typing | Kind::Search, false) => vec![1000, 10000],
-            (Kind::Table | Kind::Ticker | Kind::Typing | Kind::Search, true) => vec![1000],
-            (Kind::Spinner, _) => vec![0, 10000],
-            (Kind::Virtual, false) => vec![100_000, 1_000_000],
-            (Kind::Virtual, true) => vec![100_000],
-            (Kind::Resize, false) => vec![100, 10000],
-            (Kind::Resize, true) => vec![1000],
-            (Kind::Dashboard | Kind::DashboardResize, false) => vec![50, 1000],
-            (Kind::Dashboard | Kind::DashboardResize, true) => vec![50],
+            (Kind::App, false) => vec![30, 300, 1000, 3000],
+            (Kind::App, true) => vec![30, 1000],
+            (Kind::List, false) => vec![10_000, 1_000_000],
+            (Kind::List, true) => vec![10_000],
         }
     }
 
-    /// Returns the ticker row updates per tick, or one `None` for other scenarios.
-    pub fn update_counts(self) -> Vec<Option<u32>> {
+    /// Returns the number of elements the spec counts in the app at a row count, which results
+    /// use as the size of the app. A list holds only the rows of its window.
+    pub fn elements(self, rows: u32) -> Option<u32> {
         match self {
-            Kind::Ticker => vec![Some(1), Some(100)],
-            _ => vec![None],
+            Kind::App => {
+                Some(crate::dashboard::CHROME_ELEMENTS + crate::dashboard::ORDER_ELEMENTS * rows)
+            }
+            Kind::List => None,
         }
     }
 
-    /// Returns the variants of the scenario for a framework.
-    pub fn variants(self, fw: &Framework) -> Vec<&'static str> {
-        match self {
-            Kind::Table | Kind::Ticker => fw.variants.to_vec(),
-            _ => vec!["default"],
-        }
-    }
-
-    /// Runs the measurements of the scenario.
+    /// Runs the measurements of a cell.
     pub fn measure(self, run: &mut crate::cell::CellRun) {
         measure::run(self, run);
     }
+}
+
+/// Which measurements a cell takes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Part {
+    /// Every measurement of the scenario.
+    Full,
+    /// The pacing measurements only: scrolling, resizing and live updates. It runs at `SLOW_HZ`
+    /// for a cell that misses refreshes at `MAIN_HZ`.
+    Pacing,
 }
 
 /// The repeat counts of the measurements.
@@ -154,12 +83,14 @@ impl Kind {
 pub struct Effort {
     /// Hover repeats per iteration.
     pub hover_repeats: u32,
-    /// Repeats per iteration of every table operation and of the search probe.
+    /// Repeats per iteration of the click and key probes.
     pub op_repeats: u32,
     /// Measured iterations of every measurement.
     pub iterations: u32,
-    /// Replacements in the churn measurement.
-    pub churn_cycles: u32,
+    /// App launches of the startup measurement.
+    pub launches: u32,
+    /// How often a measurement runs again when the host disturbs it.
+    pub retries: u32,
 }
 
 /// One cell of the matrix.
@@ -170,55 +101,47 @@ pub struct Cell {
     pub kind: Kind,
     /// The framework name.
     pub framework: String,
-    /// The variant, `default` for scenarios without variants.
-    pub variant: String,
     /// The refresh rate of the output in Hz.
     pub hz: f64,
-    /// The number of rows the app renders.
+    /// The number of rows the app holds.
     pub rows: u32,
-    /// The ticker row updates per tick.
-    pub updates: Option<u32>,
+    /// The elements of the app as the spec counts them.
+    pub elements: Option<u32>,
+    /// The measurements the cell takes.
+    pub part: Part,
 }
 
-/// The ticker interval in milliseconds.
-pub const TICK_MS: u32 = 16;
-
 impl Cell {
-    /// Returns the directory of the cell in the run: `<scenario>/<framework>/<variant>/<hz>hz/<size>`.
-    /// The size is the row count, with `-u<updates>` for the ticker.
+    /// Returns a cell of a scenario, a framework and a size.
+    pub fn new(kind: Kind, framework: &str, rows: u32, hz: f64, part: Part) -> Self {
+        Self {
+            kind,
+            framework: framework.to_owned(),
+            hz,
+            rows,
+            elements: kind.elements(rows),
+            part,
+        }
+    }
+
+    /// Returns the directory of the cell in the run: `<scenario>/<framework>/<hz>hz/<rows>`.
     pub fn dir(&self) -> String {
-        let size = match self.updates {
-            Some(u) => format!("{}-u{u}", self.rows),
-            None => self.rows.to_string(),
-        };
         format!(
-            "{}/{}/{}/{}hz/{size}",
+            "{}/{}/{}hz/{}",
             self.kind.name(),
             self.framework,
-            self.variant,
-            self.hz
+            self.hz,
+            self.rows
         )
     }
 
     /// Returns the arguments of the app.
     pub fn app_args(&self) -> Vec<String> {
-        let mut args = vec![
+        vec![
             "--scenario".to_owned(),
-            self.kind.app_scenario().to_owned(),
+            self.kind.name().to_owned(),
             "--rows".to_owned(),
             self.rows.to_string(),
-        ];
-        if matches!(self.kind, Kind::Table | Kind::Ticker) {
-            args.extend(["--variant".to_owned(), self.variant.clone()]);
-        }
-        if let Some(updates) = self.updates {
-            args.extend([
-                "--updates".to_owned(),
-                updates.to_string(),
-                "--interval-ms".to_owned(),
-                TICK_MS.to_string(),
-            ]);
-        }
-        args
+        ]
     }
 }

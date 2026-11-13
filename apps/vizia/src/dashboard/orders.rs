@@ -1,25 +1,33 @@
-//! The orders card: the column header and one row per order, every row a real view. A row
-//! shows while a memo of the filters says so (`display`), so filtering hides and shows rows
-//! without rebuilding them. The cells are no hover targets, so the row takes the `:hover` state,
-//! as in the rows scenario.
+//! The orders card: the column header and a `List` of the orders that pass the filters, in the
+//! order the table shows them. The list is bound to a memo of the filters and the sorting; when
+//! the memo changes, the list rebuilds its rows from the first one that differs.
 
 use vizia::prelude::*;
 
 use super::{Dashboard, rgb};
-use crate::dashboard_spec::{COLUMNS, Order, Status, orders};
+use crate::dashboard_spec::{COLUMNS, Order, SORT_COLUMN, Status, arranged, orders, visible};
 
 /// Builds the orders card with `count` orders.
 pub fn build(cx: &mut Context, state: Dashboard, count: usize) {
+    let orders = orders(count);
+    let shown = Memo::new(move |_| {
+        let statuses = state.shown.map(|shown| shown.get());
+        let passing = state.search.with(|search| {
+            orders
+                .iter()
+                .filter(|order| visible(order, &statuses, search))
+                .cloned()
+                .collect()
+        });
+        arranged(passing, state.sorted.get())
+    });
     VStack::new(cx, move |cx| {
-        HStack::new(cx, |cx| {
-            for (title, class) in COLUMNS.into_iter().zip(COLUMN_CLASSES) {
-                Label::new(cx, title).class("column").class(class);
-            }
+        head(cx, state.sorted);
+        List::new(cx, shown, |cx, _, order| {
+            row(cx, order.get());
         })
-        .class("orders-header");
-        for order in orders(count) {
-            row(cx, state, order);
-        }
+        .show_horizontal_scrollbar(false)
+        .show_vertical_scrollbar(false);
     })
     .class("card")
     .class("orders");
@@ -34,9 +42,32 @@ const COLUMN_CLASSES: [&str; 5] = [
     "col-amount",
 ];
 
+/// Builds the column titles. A press on the amount title flips `sorted`.
+pub fn head(cx: &mut Context, sorted: Signal<bool>) {
+    HStack::new(cx, move |cx| {
+        for (title, class) in COLUMNS.into_iter().zip(COLUMN_CLASSES).take(SORT_COLUMN) {
+            Label::new(cx, title).class("column").class(class);
+        }
+        HStack::new(cx, move |cx| {
+            Label::new(cx, COLUMNS[SORT_COLUMN])
+                .class("column")
+                .class("sort")
+                .toggle_class("sorted", sorted)
+                .on_press(move |_| sorted.update(|sorted| *sorted = !*sorted));
+        })
+        .class(COLUMN_CLASSES[SORT_COLUMN]);
+    })
+    .class("orders-header");
+}
+
 /// Builds the row of `order`.
-fn row(cx: &mut Context, state: Dashboard, order: Order) {
-    let visible = state.visible(order.clone());
+fn row(cx: &mut Context, order: Order) {
+    HStack::new(cx, move |cx| cells(cx, order.clone())).class("order");
+}
+
+/// Builds the cells of the row of `order`. The cells are no hover targets, so the row takes the
+/// `:hover` state.
+pub fn cells(cx: &mut Context, order: Order) {
     let (number, amount) = (order.number_text(), order.amount());
     let Order {
         customer,
@@ -46,40 +77,36 @@ fn row(cx: &mut Context, state: Dashboard, order: Order) {
         progress,
         ..
     } = order;
+    Label::new(cx, number)
+        .class("col-order")
+        .class("order-number")
+        .hoverable(false);
     HStack::new(cx, move |cx| {
-        Label::new(cx, number)
-            .class("col-order")
-            .class("order-number")
-            .hoverable(false);
         HStack::new(cx, move |cx| {
-            HStack::new(cx, move |cx| {
-                Label::new(cx, initials);
-            })
-            .class("avatar")
-            .background_color(rgb(avatar));
-            Label::new(cx, customer);
+            Label::new(cx, initials);
         })
-        .class("col-customer")
-        .hoverable(false);
-        HStack::new(cx, |cx| {
-            Label::new(cx, status.label())
-                .class("pill")
-                .class(status_class(status));
-        })
-        .class("col-status")
-        .hoverable(false);
-        HStack::new(cx, |cx| {
-            Element::new(cx)
-                .class("progress-fill")
-                .width(Percentage(progress as f32));
-        })
-        .class("col-progress")
-        .class("progress")
-        .hoverable(false);
-        Label::new(cx, amount).class("col-amount").hoverable(false);
+        .class("avatar")
+        .background_color(rgb(avatar));
+        Label::new(cx, customer);
     })
-    .class("order")
-    .display(visible);
+    .class("col-customer")
+    .hoverable(false);
+    HStack::new(cx, |cx| {
+        Label::new(cx, status.label())
+            .class("pill")
+            .class(status_class(status));
+    })
+    .class("col-status")
+    .hoverable(false);
+    HStack::new(cx, |cx| {
+        Element::new(cx)
+            .class("progress-fill")
+            .width(Percentage(progress as f32));
+    })
+    .class("col-progress")
+    .class("progress")
+    .hoverable(false);
+    Label::new(cx, amount).class("col-amount").hoverable(false);
 }
 
 /// Returns the class that colors the pill of `status`.

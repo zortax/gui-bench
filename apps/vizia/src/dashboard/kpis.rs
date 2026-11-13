@@ -1,25 +1,26 @@
 //! The four metric cards: the label, the value, the delta pill and a sparkline of plain bars,
-//! each bar an element with its height set inline.
+//! each bar an element with its height set inline. The value follows the live tick.
 
 use vizia::prelude::*;
 
-use crate::dashboard_spec::{KPIS, Kpi};
+use super::live::Live;
+use crate::dashboard_spec::{KPI_COUNT, KPIS, Kpi, kpi_value};
 
 /// Builds the row of metric cards.
-pub fn build(cx: &mut Context) {
-    HStack::new(cx, |cx| {
-        for kpi in KPIS {
-            card(cx, kpi);
+pub fn build(cx: &mut Context, live: Live) {
+    HStack::new(cx, move |cx| {
+        for index in 0..KPI_COUNT {
+            card(cx, index, KPIS[index], live);
         }
     })
     .class("kpis");
 }
 
-/// Builds one metric card.
-fn card(cx: &mut Context, kpi: Kpi) {
+/// Builds metric card `index`.
+fn card(cx: &mut Context, index: usize, kpi: Kpi, live: Live) {
     VStack::new(cx, move |cx| {
         Label::new(cx, kpi.label).class("kpi-label");
-        Label::new(cx, kpi.value).class("kpi-value");
+        Label::new(cx, live.tick.map(move |tick| kpi_value(index, *tick))).class("kpi-value");
         Label::new(cx, kpi.delta)
             .class("delta")
             .toggle_class("up", kpi.up)

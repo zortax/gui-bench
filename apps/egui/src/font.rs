@@ -14,12 +14,7 @@ use fontique::{
 const NAME: &str = "system-sans-serif";
 
 /// Returns the egui font definitions with the system sans-serif face in front, or the egui
-/// defaults when the system has no such face.
-pub fn definitions() -> FontDefinitions {
-    with_weights(&[])
-}
-
-/// Returns the definitions of `definitions`, plus one named family per `(name, weight)`: the
+/// defaults when the system has no such face, plus one named family per `(name, weight)`: the
 /// system sans-serif face that fontconfig matches to the weight, then the proportional fonts.
 pub fn with_weights(weights: &[(&str, FontWeight)]) -> FontDefinitions {
     let mut fonts = FontDefinitions::default();

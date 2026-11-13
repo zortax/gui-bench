@@ -24,3 +24,7 @@ check:
 # Run the tests.
 test:
     cargo test -p explorer-core -p explorer-data
+
+# Build the container image with the runs of `../results` inside (not `old/` and `dev-*`).
+image tag="gui-bench-explorer" *args:
+    cd .. && docker build -f explorer/Dockerfile -t {{tag}} {{args}} .

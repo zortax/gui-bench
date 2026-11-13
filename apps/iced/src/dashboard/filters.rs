@@ -5,9 +5,8 @@ use iced::alignment::Vertical;
 use iced::widget::{button, checkbox, column, container, row, space, text, toggler};
 use iced::{Background, Border, Element, Length};
 
-use super::style::{self, SEMIBOLD};
+use super::style::{self, SEMIBOLD, color};
 use super::{Message, spec};
-use crate::page::color;
 
 /// The top of the card in the window, and the heights of the title line, the compare row and the
 /// space above and below it.
@@ -41,7 +40,7 @@ pub fn view<'a>(shown: &[bool; 4], compare: bool) -> Element<'a, Message> {
     let switch = toggler(compare)
         .on_toggle(Message::Compare)
         .size(spec::SWITCH_HEIGHT)
-        .style(switch_style);
+        .style(style::switch);
     let compare = row![
         text(spec::COMPARE_LABEL)
             .size(spec::FONT_SIZE)
@@ -115,25 +114,5 @@ fn check_style(_: &iced::Theme, status: checkbox::Status) -> checkbox::Style {
             radius: 4.0.into(),
         },
         text_color: Some(color(spec::TEXT)),
-    }
-}
-
-/// The switch: a gray track when off, the primary color when on, and a white knob 2 px inside.
-fn switch_style(_: &iced::Theme, status: toggler::Status) -> toggler::Style {
-    let on = match status {
-        toggler::Status::Active { is_toggled }
-        | toggler::Status::Hovered { is_toggled }
-        | toggler::Status::Disabled { is_toggled } => is_toggled,
-    };
-    toggler::Style {
-        background: Background::Color(color(if on { spec::PRIMARY } else { spec::SWITCH_OFF })),
-        background_border_width: 0.0,
-        background_border_color: color(spec::SWITCH_OFF),
-        foreground: Background::Color(color(0xffffff)),
-        foreground_border_width: 0.0,
-        foreground_border_color: color(0xffffff),
-        text_color: None,
-        border_radius: None,
-        padding_ratio: 2.0 / spec::SWITCH_HEIGHT,
     }
 }

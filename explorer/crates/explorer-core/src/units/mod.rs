@@ -4,5 +4,5 @@
 mod format;
 mod time;
 
-pub use format::{Display, display, format_value, short, thousands};
+pub use format::{Display, compact, display, format_value, short, thousands};
 pub use time::{date_time, duration};

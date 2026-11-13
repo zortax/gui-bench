@@ -1,6 +1,7 @@
 //! The orders card: the column header and a keyed `dyn_stack` of the orders that pass the status
-//! filter and the search. Every shown order is a real row view; a filter change keeps the views
-//! of the orders that stay. A row takes the hover color at once while the pointer is over it.
+//! filter and the search, in the order of the data or by amount. Every shown order is a real row
+//! view; a filter change or a sort keeps the views of the orders that stay. A row takes the hover
+//! color at once while the pointer is over it.
 
 use std::rc::Rc;
 
@@ -25,20 +26,25 @@ pub fn view(count: usize, state: State) -> impl IntoView {
     let rows = dyn_stack(
         move || {
             let shown = state.shown();
-            state.search.with(|search| {
+            let passing = state.search.with(|search| {
                 orders
                     .iter()
                     .filter(|order| dash::visible(order, &shown, search))
                     .cloned()
                     .collect::<Vec<Order>>()
-            })
+            });
+            dash::arranged(passing, state.sorted.get())
         },
         |order| order.number,
         row,
     )
     .style(|s| s.flex_col().width_full());
     // The card clips the rows to its rounded corners.
-    Stack::vertical((header(), rows)).style(|s| {
+    let header = header(state.sorted).style(|s| {
+        s.border_top_left_radius(px(dash::CARD_RADIUS))
+            .border_top_right_radius(px(dash::CARD_RADIUS))
+    });
+    Stack::vertical((header, rows)).style(|s| {
         style::card(s)
             .width_full()
             .overflow_x(Overflow::Clip)
@@ -46,10 +52,23 @@ pub fn view(count: usize, state: State) -> impl IntoView {
     })
 }
 
-/// The header with the column titles.
-fn header() -> impl IntoView {
-    let [order, customer, status, progress, amount] =
-        dash::COLUMNS.map(|title| text(title, 12.0, Weight::Semibold, dash::MUTED));
+/// The header with the column titles. A click on the amount title flips `sorted`; the title is
+/// in the primary color while the orders are sorted.
+pub fn header(sorted: RwSignal<bool>) -> Stack {
+    let [order, customer, status, progress] =
+        [0, 1, 2, 3].map(|k| text(dash::COLUMNS[k], 12.0, Weight::Semibold, dash::MUTED));
+    let title = Label::new(dash::COLUMNS[dash::SORT_COLUMN]).style(move |s| {
+        let hex = if sorted.get() { dash::PRIMARY } else { dash::MUTED };
+        style::font(s, 12.0, Weight::Semibold, hex)
+    });
+    let amount = Container::new(title)
+        .style(|s| {
+            s.width(px(dash::SORT_WIDTH))
+                .height_full()
+                .justify_end()
+                .items_center()
+        })
+        .action(move || sorted.update(|sorted| *sorted = !*sorted));
     cells(
         (order, customer, status, progress, amount),
         dash::TABLE_HEADER_HEIGHT,
@@ -58,13 +77,11 @@ fn header() -> impl IntoView {
         s.border_bottom(1.0)
             .border_color(color(dash::RULE))
             .background(color(dash::TABLE_HEADER_BG))
-            .border_top_left_radius(px(dash::CARD_RADIUS))
-            .border_top_right_radius(px(dash::CARD_RADIUS))
     })
 }
 
 /// One order row.
-fn row(order: Order) -> impl IntoView {
+pub fn row(order: Order) -> impl IntoView {
     let number = text(order.number_text(), dash::FONT_SIZE, Weight::Normal, dash::MUTED);
     let avatar = Container::new(text(&order.initials, 11.0, Weight::Semibold, 0xffffff))
         .style(move |s| circle(s, dash::AVATAR, order.avatar));
@@ -115,6 +132,7 @@ fn cells(
     let amount = Container::new(amount).style(|s| {
         s.flex_grow(1.0_f32)
             .min_width(0.0)
+            .height_full()
             .justify_end()
             .items_center()
     });

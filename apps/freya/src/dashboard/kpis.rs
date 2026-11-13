@@ -2,12 +2,13 @@
 
 use freya::prelude::*;
 
-use super::{card, pill, spec, text};
-use crate::page::color;
+use super::{card, color, pill, spec, text};
 
-/// The row of metric cards. It has no state, so it renders once.
+/// The row of metric cards. It only hands the live tick down, so it renders once.
 #[derive(PartialEq)]
-pub struct Kpis;
+pub struct Kpis {
+    pub tick: State<u64>,
+}
 
 impl Component for Kpis {
     fn render(&self) -> impl IntoElement {
@@ -17,19 +18,28 @@ impl Component for Kpis {
             .width(Size::fill())
             .height(Size::px(spec::KPI_HEIGHT))
             .spacing(spec::GAP)
-            .children(spec::KPIS.iter().map(|&kpi| KpiCard { kpi }.into_element()))
+            .children((0..spec::KPI_COUNT).map(|index| {
+                KpiCard {
+                    index,
+                    tick: self.tick,
+                }
+                .into_element()
+            }))
     }
 }
 
-/// One metric card, which shares the width of the row with the others.
+/// Metric card `index`, which shares the width of the row with the others. It reads the live
+/// tick, so a tick renders the card with its next value.
 #[derive(PartialEq)]
 struct KpiCard {
-    kpi: spec::Kpi,
+    index: usize,
+    tick: State<u64>,
 }
 
 impl Component for KpiCard {
     fn render(&self) -> impl IntoElement {
-        let kpi = &self.kpi;
+        let kpi = &spec::KPIS[self.index];
+        let value = spec::kpi_value(self.index, *self.tick.read());
         let colors = if kpi.up {
             (spec::UP_BG, spec::UP_TEXT)
         } else {
@@ -55,7 +65,7 @@ impl Component for KpiCard {
                 spec::MUTED,
             )))
             .child(rect().height(Size::px(38.0)).child(text(
-                kpi.value,
+                value,
                 24.0,
                 FontWeight::BOLD,
                 spec::TEXT,

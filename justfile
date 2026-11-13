@@ -20,20 +20,27 @@ build:
 build-app name:
     cd apps/{{name}} && {{limit}}{{build_mem}} cargo build --release
 
-# Build the editions that are feature builds of an app: Dioxus Native with the Skia renderer.
+# Build the editions that are feature builds of an app: GPUI and iced with their opt-in caching,
+# and Dioxus Native with the Skia renderer.
 build-editions:
+    cd apps/gpui-kit && {{limit}}{{build_mem}} cargo build --release --features tuned --target-dir target/tuned
+    cd apps/iced && {{limit}}{{build_mem}} cargo build --release --features tuned --target-dir target/tuned
     cd apps/dioxus && {{limit}}{{build_mem}} cargo build --release --no-default-features --features skia --target-dir target/skia
 
-# Run the benchmark matrix, for example `just run --scenarios table,ticker --frameworks zgui`.
+# Run the benchmark matrix, for example `just run --scenarios app --frameworks zgui,egui`.
 run *args:
     cd runner && cargo build -q --release
     env -u DISPLAY -u WAYLAND_DISPLAY {{limit}}{{run_mem}} runner/target/release/gui-bench {{args}}
 
-# Run a small matrix as a quick check, for example `just quick --scenarios spinner`.
+# Run the whole matrix for a publication: every edition, more iterations, every size.
+full *args:
+    just run --full {{args}}
+
+# Run a small matrix as a quick check, for example `just quick --scenarios list`.
 quick *args:
     just run --quick {{args}}
 
-# Run one scenario for every framework, such as `just scenario table`.
+# Run one scenario for every framework, such as `just scenario list`.
 scenario name *args:
     just run --scenarios {{name}} {{args}}
 

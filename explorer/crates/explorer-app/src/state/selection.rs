@@ -6,7 +6,7 @@ use explorer_core::api::{CellInfo, RunOverview};
 use super::PrefsSnapshot;
 use crate::palette;
 
-/// Returns the shown cells of a scenario in plot order: framework, variant, rate, size.
+/// Returns the shown cells of a scenario that ran, in plot order: framework, rate, size.
 pub fn cells_of<'a>(
     overview: &'a RunOverview,
     prefs: &PrefsSnapshot,
@@ -15,23 +15,33 @@ pub fn cells_of<'a>(
     let mut cells: Vec<&CellInfo> = overview
         .cells
         .iter()
-        .filter(|c| c.key.scenario == scenario)
+        .filter(|c| c.key.scenario == scenario && c.ran())
         .filter(|c| prefs.shows_framework(&c.key.framework))
-        .filter(|c| prefs.shows_variant(&c.key.variant))
         .filter(|c| prefs.shows_rate(c.key.hz))
         .collect();
     cells.sort_by(|a, b| {
         palette::rank(&a.key.framework)
             .total_cmp(&palette::rank(&b.key.framework))
             .then_with(|| a.key.framework.cmp(&b.key.framework))
-            .then_with(|| {
-                palette::variant_rank(&a.key.variant).cmp(&palette::variant_rank(&b.key.variant))
-            })
             .then_with(|| a.key.hz.total_cmp(&b.key.hz))
-            .then_with(|| a.key.size_key().cmp(&b.key.size_key()))
+            .then_with(|| a.key.rows.cmp(&b.key.rows))
     });
     cells
 }
+
+/// Returns the smallest size of a scenario that a framework did not run, since it was over the
+/// response budget at a smaller size.
+pub fn stop_of(overview: &RunOverview, scenario: &str, framework: &str) -> Option<f64> {
+    overview
+        .cells
+        .iter()
+        .filter(|c| c.key.scenario == scenario && c.key.framework == framework && !c.ran())
+        .map(|c| c.key.size())
+        .min_by(f64::total_cmp)
+}
+
+/// A size of a scenario: the rows, and the elements of the app.
+pub type Size = (u32, Option<u32>);
 
 /// The shown cells of one scenario with their axes.
 #[derive(Debug, Clone)]
@@ -70,16 +80,28 @@ impl<'a> Selection<'a> {
         out
     }
 
-    /// Returns the sizes (rows, updates) in ascending order.
-    pub fn sizes(&self) -> Vec<(u32, Option<u32>)> {
-        let mut out: Vec<(u32, Option<u32>)> = Vec::new();
-        for c in &self.cells {
-            let s = (c.key.rows, c.key.updates);
+    /// Returns the sizes in ascending order, of the cells at a refresh rate or of every cell.
+    pub fn sizes(&self, hz: Option<f64>) -> Vec<Size> {
+        let mut out: Vec<Size> = Vec::new();
+        for c in self
+            .cells
+            .iter()
+            .filter(|c| hz.is_none_or(|h| c.key.hz == h))
+        {
+            let s = (c.key.rows, c.key.elements);
             if !out.contains(&s) {
                 out.push(s);
             }
         }
-        out.sort_by_key(|(r, u)| (*r, u.unwrap_or(0)));
+        out.sort_by_key(|(r, _)| *r);
         out
+    }
+
+    /// Returns the number of cells at a refresh rate and a row count.
+    pub fn count(&self, hz: f64, rows: u32) -> usize {
+        self.cells
+            .iter()
+            .filter(|c| c.key.hz == hz && c.key.rows == rows)
+            .count()
     }
 }

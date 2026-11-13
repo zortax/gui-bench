@@ -1,20 +1,25 @@
-//! The top bar: a top panel whose separator line is its bottom border, with the page title on
-//! the left and, from the right end, the avatar, the export button and the search input.
+//! The top bar: a top panel whose separator line is its bottom border, with the title of the
+//! page on the left and, from the right end, the avatar, the export button with its menu, the
+//! spinner, the live switch and the search input.
 
 use eframe::egui::{
-    Align, Align2, CornerRadius, Frame, Layout, Margin, Panel, Stroke, TextEdit, Ui, Vec2, vec2,
+    Align, Align2, Button, CornerRadius, Frame, Layout, Margin, Panel, Popup, Stroke, Style,
+    TextEdit, Ui, Vec2, menu, vec2,
 };
 
+use super::live::Live;
 use super::spec;
-use super::style::{Weight, area, avatar, color, primary_button, text};
+use super::style::{Weight, area, avatar, color, primary_button, shadow, text};
 
 /// The space between the top of the bar and its controls.
 const CONTROL_TOP: f32 = (spec::TOPBAR_HEIGHT - spec::CONTROL_HEIGHT) / 2.0;
 /// The space between the avatar, the export button and the right end.
 const SPACING: f32 = 24.0;
+/// The space between the left edge of a menu item and its label.
+const ITEM_PADDING: f32 = 12.0;
 
-/// Shows the top bar with the search input over `search`.
-pub fn show(ui: &mut Ui, search: &mut String) {
+/// Shows the top bar with `title`, the search input over `search` and the live switch.
+pub fn show(ui: &mut Ui, title: &str, search: &mut String, live: &mut Live) {
     // The bar's height includes its 1 px border, the separator line of the panel.
     Panel::top("topbar")
         .exact_size(spec::TOPBAR_HEIGHT)
@@ -25,7 +30,7 @@ pub fn show(ui: &mut Ui, search: &mut String) {
             area(ui, size, Layout::left_to_right(Align::Center), |ui| {
                 ui.add_space(spec::TOPBAR_TITLE_X - spec::SIDEBAR_WIDTH);
                 ui.label(text(
-                    spec::PAGE_TITLE,
+                    title,
                     spec::TITLE_FONT + 4.0,
                     Weight::Semibold,
                     spec::TEXT,
@@ -35,13 +40,55 @@ pub fn show(ui: &mut Ui, search: &mut String) {
                     let initials = text(spec::USER_INITIALS, 13.0, Weight::Semibold, 0xffffff);
                     avatar(ui, spec::CONTROL_HEIGHT, spec::USER_COLOR, initials);
                     ui.add_space(SPACING);
-                    let export = vec2(spec::EXPORT_WIDTH, spec::CONTROL_HEIGHT);
-                    primary_button(ui, spec::EXPORT_LABEL, export);
-                    ui.add_space(spec::EXPORT_X - (spec::SEARCH_X + spec::SEARCH_WIDTH));
+                    export_menu(ui);
+                    ui.add_space(spec::EXPORT_X - (spec::SPINNER_X + spec::SPINNER_SIZE));
+                    live.spinner(ui);
+                    ui.add_space(spec::SPINNER_X - (spec::LIVE_X + spec::SWITCH_WIDTH));
+                    live.switch(ui);
+                    ui.add_space(spec::LIVE_X - (spec::SEARCH_X + spec::SEARCH_WIDTH));
                     search_input(ui, search);
                 });
             });
         });
+}
+
+/// The export button and its menu: egui's menu popup under the button, which a click on the
+/// button opens and closes, with one button per item.
+fn export_menu(ui: &mut Ui) {
+    let size = vec2(spec::EXPORT_WIDTH, spec::CONTROL_HEIGHT);
+    let button = primary_button(ui, spec::EXPORT_LABEL, size);
+    let frame = Frame::new()
+        .fill(color(spec::CARD_BG))
+        .stroke(Stroke::new(1.0, color(spec::RULE)))
+        .corner_radius(8)
+        .shadow(shadow(spec::SHADOW_CARD))
+        .inner_margin(Margin::same(spec::MENU_PADDING as i8));
+    // The width of an item: the menu without its padding and its border.
+    let item = vec2(
+        spec::MENU_WIDTH - 2.0 * (spec::MENU_PADDING + 1.0),
+        spec::MENU_ITEM_HEIGHT,
+    );
+    Popup::menu(&button)
+        .gap(spec::MENU_Y - (CONTROL_TOP + spec::CONTROL_HEIGHT))
+        .width(spec::MENU_WIDTH)
+        .frame(frame)
+        .style(menu_style)
+        .show(|ui| {
+            for label in spec::MENU_ITEMS {
+                let label = text(label, spec::FONT_SIZE, Weight::Regular, spec::TEXT);
+                // The menu closes on any click in it, so the items do nothing themselves.
+                ui.add(Button::new(label).corner_radius(6).min_size(item));
+            }
+        });
+}
+
+/// The style of the menu: egui's menu style with the spec's item padding and hover fill.
+fn menu_style(style: &mut Style) {
+    menu::menu_style(style);
+    style.spacing.button_padding = vec2(ITEM_PADDING, 0.0);
+    let widgets = &mut style.visuals.widgets;
+    widgets.hovered.weak_bg_fill = color(spec::MENU_HOVER);
+    widgets.active.weak_bg_fill = color(spec::MENU_HOVER);
 }
 
 /// The search input: egui's single-line text edit in the spec's border, fill and radius, set

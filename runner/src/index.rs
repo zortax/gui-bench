@@ -1,18 +1,19 @@
 //! The index of a run, `run.json`: the settings, the revisions of the checkouts, and the outcome
-//! of every cell. A resumed run keeps the cells of the earlier index that the new matrix does not
-//! name, so a run can grow by scenarios; `history` lists the settings of every invocation.
+//! of every cell. A resumed run keeps the cells of the earlier index until a cell with the same
+//! directory replaces them, so a run can grow and an interrupted run loses nothing; `history`
+//! lists the settings of every invocation.
 
-use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use serde_json::{Value, json};
 
+use crate::frameworks::Framework;
 use crate::scenarios::{self, Effort};
-use crate::{cell, frameworks, layout, steps};
+use crate::{cell, dashboard, frameworks, steps};
 
 /// The format of `run.json` and the run directory.
-const FORMAT: u32 = 2;
+const FORMAT: u32 = 3;
 
 /// The index of a run while it runs.
 pub struct Index {
@@ -23,7 +24,7 @@ pub struct Index {
     effort: Effort,
     a11y: bool,
     history: Vec<Value>,
-    /// The cells of the earlier index outside the new matrix.
+    /// The cells of the earlier index.
     kept: Vec<Value>,
 }
 
@@ -39,13 +40,8 @@ pub struct Invocation<'a> {
 
 impl Index {
     /// Starts the index of `run_dir`. With `resume`, it reads the earlier index and keeps its
-    /// cells whose directories are not in `matrix`.
-    pub fn new(
-        run_dir: &Path,
-        run: &Invocation<'_>,
-        resume: bool,
-        matrix: &HashSet<String>,
-    ) -> Self {
+    /// cells.
+    pub fn new(run_dir: &Path, run: &Invocation<'_>, resume: bool) -> Self {
         let path = run_dir.join("run.json");
         let invocation = json!({
             "started_unix": run.started_unix,
@@ -70,14 +66,14 @@ impl Index {
             .flatten()
             .and_then(|text| serde_json::from_str::<Value>(&text).ok());
         if let Some(earlier) = earlier {
-            index.merge(&earlier, matrix);
+            index.merge(&earlier);
         }
         index.history.push(invocation);
         index
     }
 
-    /// Takes the start, the names, the history and the cells outside `matrix` of an earlier index.
-    fn merge(&mut self, earlier: &Value, matrix: &HashSet<String>) {
+    /// Takes the start, the names, the history and the cells of an earlier index.
+    fn merge(&mut self, earlier: &Value) {
         if let Some(t) = earlier["started_unix"].as_u64() {
             self.started_unix = t;
         }
@@ -94,16 +90,19 @@ impl Index {
                 "revisions": earlier["revisions"],
             })],
         };
-        let cells = earlier["cells"].as_array().into_iter().flatten();
-        self.kept = cells
-            .filter(|c| c["dir"].as_str().is_some_and(|d| !matrix.contains(d)))
-            .cloned()
-            .collect();
+        self.kept = earlier["cells"].as_array().cloned().unwrap_or_default();
     }
 
-    /// Writes `run.json` with the kept cells and the cells of this invocation.
+    /// Writes `run.json` with the cells of this invocation and the kept cells that none of them
+    /// replaces.
     pub fn write(&self, cells: &[Value]) -> anyhow::Result<()> {
-        let all: Vec<&Value> = self.kept.iter().chain(cells).collect();
+        let replaced = |kept: &&Value| cells.iter().any(|c| c["dir"] == kept["dir"]);
+        let all: Vec<&Value> = self
+            .kept
+            .iter()
+            .filter(|kept| !replaced(kept))
+            .chain(cells)
+            .collect();
         let index = json!({
             "format": FORMAT,
             "started_unix": self.started_unix,
@@ -111,16 +110,69 @@ impl Index {
             "frameworks": self.frameworks,
             "effort": self.effort,
             "accessibility": self.a11y,
-            "output": { "width": layout::OUTPUT.0, "height": layout::OUTPUT.1 },
-            "row_height": layout::ROW_HEIGHT,
-            "header_height": layout::HEADER_HEIGHT,
-            "scroll": { "velocity": steps::SCROLL_VELOCITY, "seconds": steps::SCROLL_SECONDS },
-            "tick_ms": scenarios::TICK_MS,
+            "output": { "width": dashboard::OUTPUT.0, "height": dashboard::OUTPUT.1 },
+            "hz": { "main": scenarios::MAIN_HZ, "slow": scenarios::SLOW_HZ },
+            "scroll": {
+                "glide_velocity": steps::GLIDE_VELOCITY,
+                "wheel_velocity": steps::WHEEL_VELOCITY,
+                "fling_velocity": steps::FLING_VELOCITY,
+                "seconds": steps::GLIDE_SECONDS,
+            },
+            "elements": {
+                "chrome": dashboard::CHROME_ELEMENTS,
+                "per_row": dashboard::ORDER_ELEMENTS,
+            },
+            "builds": self.builds(),
+            "framework_versions": self.versions(),
             "revisions": revisions(),
             "history": self.history,
             "cells": all,
         });
         cell::save(&self.path, &index)
+    }
+}
+
+impl Index {
+    /// Returns, for every framework of the run, the size of its binary and the parts its app
+    /// builds by hand.
+    fn builds(&self) -> Value {
+        let root = frameworks::root();
+        let builds = self.frameworks.iter().filter_map(|name| {
+            let fw = Framework::by_name(name)?;
+            let size = std::fs::metadata(fw.binary_path(&root))
+                .ok()
+                .map(|m| m.len());
+            let flags: Vec<Value> = fw
+                .flags
+                .iter()
+                .map(|(part, note)| json!({ "part": part, "note": note }))
+                .collect();
+            Some((
+                name.clone(),
+                json!({ "app": fw.app, "binary_bytes": size, "flags": flags }),
+            ))
+        });
+        Value::Object(builds.collect())
+    }
+}
+
+impl Index {
+    /// Returns, for every framework of the run, the crate that stands for it, its version and
+    /// where it comes from. A local checkout names the revision of the zgui checkout.
+    fn versions(&self) -> Value {
+        let root = frameworks::root();
+        let versions = self.frameworks.iter().filter_map(|name| {
+            let fw = Framework::by_name(name)?;
+            let (version, mut source) = fw.version(&root)?;
+            if source == "local checkout"
+                && let Some(rev) = revision(&root.join("../zgui-fakeland-marks"))
+            {
+                source = format!("local checkout @ {rev}");
+            }
+            let entry = json!({ "crate": fw.package, "version": version, "source": source });
+            Some((name.clone(), entry))
+        });
+        Value::Object(versions.collect())
     }
 }
 

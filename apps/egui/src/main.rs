@@ -6,30 +6,17 @@
 mod cli;
 mod dashboard;
 mod font;
-mod page;
-mod rows;
-mod search;
-#[path = "../../shared/spec.rs"]
-mod spec;
-mod spinner;
-mod table;
-mod virtual_rows;
 mod window;
 
-use crate::cli::{Scenario, Variant};
+use crate::cli::Scenario;
 
 const NAME: &str = "egui-bench";
 
 fn main() -> eframe::Result {
-    // egui is immediate mode, so the table has one variant: the immediate one.
-    let scenario = cli::from_env(NAME, &[Variant::Default]);
+    let scenario = cli::from_env(NAME);
     let title = scenario.title();
     match scenario {
-        Scenario::Rows { count } => rows::run(title, count),
-        Scenario::Table { count, ticker, .. } => table::run(title, count, ticker),
-        Scenario::Spinner { count } => spinner::run(title, count),
-        Scenario::Search { count, filter } => search::run(title, count, filter),
-        Scenario::Virtual { count } => virtual_rows::run(title, count),
-        Scenario::Dashboard { count } => dashboard::run(title, count),
+        Scenario::App { count } => dashboard::run(title, count),
+        Scenario::List { count } => dashboard::list::run(title, count),
     }
 }

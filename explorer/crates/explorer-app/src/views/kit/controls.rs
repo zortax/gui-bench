@@ -1,16 +1,44 @@
-//! Compact controls of the views: the view heading and a picker of sizes and refresh rates.
+//! Compact controls of the views: the view heading, the label of a size and the axis of sizes.
 
+use explorer_core::units::{compact, thousands};
 use leptos::prelude::*;
 
-use crate::widgets::Segmented;
+use crate::chart::Axis;
+use crate::state::Size;
 
-/// Returns the label of a size: the rows, with the ticker updates.
-pub fn sizes_label(rows: u32, updates: Option<u32>) -> String {
-    let r = explorer_core::units::thousands(f64::from(rows));
-    match updates {
-        Some(u) => format!("{r} × {u}/tick"),
-        None => format!("{r} rows"),
+/// Returns the label of a size: the elements of the app, or the rows of the list.
+pub fn size_label(size: Size) -> String {
+    match size.1 {
+        Some(e) => format!("{} elements", compact(f64::from(e))),
+        None => format!("{} rows", compact(f64::from(size.0))),
     }
+}
+
+/// Returns the long label of a size, with the orders behind the elements.
+pub fn size_words(size: Size) -> String {
+    match size.1 {
+        Some(e) => format!(
+            "{} elements ({} orders)",
+            thousands(f64::from(e)),
+            thousands(f64::from(size.0))
+        ),
+        None => format!("{} rows", thousands(f64::from(size.0))),
+    }
+}
+
+/// Returns the x axis over the sizes of a scenario: a log axis with a tick at every measured
+/// size, named after what the sizes count.
+pub fn size_axis(sizes: &[Size]) -> Axis {
+    let label = if sizes.iter().any(|s| s.1.is_some()) {
+        "elements in the app"
+    } else {
+        "rows of data"
+    };
+    let ticks = sizes
+        .iter()
+        .map(|s| f64::from(s.1.unwrap_or(s.0)))
+        .collect();
+    Axis::log_fixed(label, ticks)
 }
 
 /// The heading of a view: a title, what it shows and controls on the right.
@@ -26,30 +54,5 @@ pub fn ViewHead(
             <p>{text}</p>
             <div class="gx-view__controls">{children.map(|c| c())}</div>
         </div>
-    }
-}
-
-/// A segmented picker of keys, such as sizes or refresh rates.
-#[component]
-pub fn SizePicker(
-    #[prop(into)] options: Signal<Vec<(String, String)>>,
-    value: RwSignal<String>,
-    #[prop(optional, into)] title: Option<String>,
-) -> impl IntoView {
-    Effect::new(move |_| {
-        let opts = options.get();
-        if !opts.iter().any(|(k, _)| *k == value.get_untracked())
-            && let Some((k, _)) = opts.last()
-        {
-            value.set(k.clone());
-        }
-    });
-    view! {
-        <Segmented
-            options=options
-            value=Signal::derive(move || value.get())
-            on_change=Callback::new(move |k| value.set(k))
-            title=title.unwrap_or_default()
-        />
     }
 }

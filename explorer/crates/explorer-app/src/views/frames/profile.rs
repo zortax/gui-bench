@@ -1,4 +1,4 @@
-//! The frame-time profile at one size and rate: per framework and variant, the median interval
+//! The frame-time profile at one size and rate: per framework, the median interval
 //! as a dot, a band to p99, a whisker to the longest gap, and ticks at p90, p99 and p99.9. Rules
 //! mark 1, 2, 4 and 8 refreshes.
 
@@ -9,7 +9,6 @@ use leptos::prelude::*;
 
 use super::source::{LADDER, Source};
 use crate::chart::{Axis, ChartCard, DotModel, DotPlot, DotRow, Rule, use_card};
-use crate::palette::Marker;
 use crate::state::use_explorer;
 use crate::views::kit::{Build, Data, Scope};
 
@@ -25,21 +24,16 @@ pub fn ProfileCard(
     view! {
         <ChartCard
             title=title.unwrap_or_else(|| "Frame-time profile".to_owned())
-            note="Dot: median interval · band: to p99 · whisker: to the longest gap · ticks: p90, p99, p99.9 · labels: p50 → p99 → longest · medians of iterations · rules: 1, 2, 4 and 8 refreshes"
+            note="Dot: median interval · band: to p99 · whisker: to the longest gap · ticks: p90, p99, p99.9 · labels: p50 → p99 → longest · medians of iterations · rules: 1, 2, 4 and 8 refreshes · hollow: a part built by hand"
         >
             <ProfilePlot data=data source=source scope=scope per_refresh=per_refresh/>
         </ChartCard>
     }
 }
 
-fn row_of(b: &Build, source: &Source, c: &CellInfo, per: f64, many_rates: bool) -> DotRow {
-    let mut label = c.key.label();
-    if many_rates {
-        label.push_str(&format!(" {} Hz", c.key.hz));
-    }
-    let mut row = DotRow::of_framework(c.id.to_string(), &c.key.framework, label);
-    row.marker = Marker::of_variant(&c.key.variant);
-    row.hollow = c.key.variant == "coarse";
+fn row_of(b: &Build, source: &Source, c: &CellInfo, per: f64) -> DotRow {
+    let mut row = DotRow::of_framework(c.id.to_string(), &c.key.framework, c.key.framework.clone());
+    row.hollow = b.hand_built(&c.key, source.measurement);
     row.cell = Some(c.id);
     let at = |m: &str| b.data.stat(&source.metric(m), c.id).map(|s| s.median * per);
     let Some(p50) = at("interval_p50") else {
@@ -59,9 +53,9 @@ fn row_of(b: &Build, source: &Source, c: &CellInfo, per: f64, many_rates: bool) 
     if let Some(v) = max {
         row.tip.push(("max".to_owned(), short(v)));
     }
-    if let Some(s) = b.data.stat(&source.metric("stale_refreshes"), c.id) {
+    if let Some(s) = b.data.stat(&source.metric("missed_share"), c.id) {
         row.tip.push((
-            "stale refreshes".to_owned(),
+            "refreshes missed".to_owned(),
             format!("{}%", short(s.median)),
         ));
     }
@@ -94,13 +88,10 @@ fn ProfilePlot(
         let cells: Vec<&CellInfo> = b
             .cells(source.scenario)
             .into_iter()
-            .filter(|c| scope.holds(c.key.rows, c.key.updates, c.key.hz))
+            .filter(|c| scope.holds(c.key.rows, c.key.hz))
             .filter(|c| !prefs.valid_only || c.is_valid(source.measurement))
             .collect();
-        let rows = cells
-            .iter()
-            .map(|c| row_of(&b, &source, c, per, false))
-            .collect();
+        let rows = cells.iter().map(|c| row_of(&b, &source, c, per)).collect();
         let refresh = if per_on { 1.0 } else { 1000.0 / hz };
         let mut x = Axis::value(
             if per_on {

@@ -1,5 +1,5 @@
-//! The sidebar: its own view, since only a nav click or a hover changes it. The root embeds it
-//! as a cached view, so neither re-renders the rest of the dashboard.
+//! The sidebar: its own view with the brand, the nav items and the user. A click on a nav item
+//! makes it the active one and tells the subscribers, which show its page.
 
 use gpui_kit::component::{h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
@@ -13,11 +13,17 @@ pub struct Sidebar {
     active: usize,
 }
 
+/// Nav item `0` became the active one.
+pub struct Selected(pub usize);
+
+impl EventEmitter<Selected> for Sidebar {}
+
 impl Sidebar {
     /// Makes nav item `i` the active one.
     fn select(&mut self, i: usize, cx: &mut Context<Self>) {
         if self.active != i {
             self.active = i;
+            cx.emit(Selected(i));
             cx.notify();
         }
     }
@@ -141,7 +147,9 @@ impl Render for Sidebar {
             .map(|i| self.item(i, cx))
             .collect();
         v_flex()
-            .size_full()
+            .flex_none()
+            .w(px(spec::SIDEBAR_WIDTH))
+            .h_full()
             .bg(rgb(spec::SIDEBAR_BG))
             .text_size(px(spec::FONT_SIZE))
             .child(brand())

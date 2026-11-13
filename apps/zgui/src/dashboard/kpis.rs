@@ -2,26 +2,31 @@
 
 use zgui::prelude::*;
 
+use super::live::Live;
 use super::spec::{self, Kpi};
 
-/// The row of metric cards, which share the width. The cards never change, so a plain list holds
-/// them.
+/// The row of metric cards, which share the width. The set of cards never changes, so a plain
+/// list holds them; only the value text follows the live tick.
 #[component]
-pub fn MetricCards() -> impl IntoView {
+pub fn MetricCards(live: Live) -> impl IntoView {
     view! {
         row(class = "kpis") {
-            {Vec::from(spec::KPIS.map(|kpi| view! { MetricCard(kpi = kpi) }.into_view()))}
+            {(0..spec::KPI_COUNT)
+                .map(|index| view! {
+                    MetricCard(index = index, kpi = spec::KPIS[index], live = live)
+                }.into_view())
+                .collect::<Vec<_>>()}
         }
     }
 }
 
-/// One metric card.
+/// Metric card `index`.
 #[component]
-fn MetricCard(kpi: Kpi) -> impl IntoView {
+fn MetricCard(index: usize, kpi: Kpi, live: Live) -> impl IntoView {
     view! {
         column(class = "card kpi") {
             text(class = "kpi__label") {{kpi.label}}
-            text(class = "kpi__value") {{kpi.value}}
+            text(class = "kpi__value") {{move || spec::kpi_value(index, live.tick.get())}}
             row(class = "delta", class:up = kpi.up, class:down = !kpi.up) {{kpi.delta}}
             row(class = "spark") {
                 {Vec::from(kpi.spark.map(|height| view! {

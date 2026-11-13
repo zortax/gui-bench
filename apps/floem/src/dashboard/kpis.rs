@@ -1,15 +1,21 @@
 //! The metric cards: four cards that share the width, each with its label, value, delta pill and
-//! a sparkline of plain rounded bars at the bottom right.
+//! a sparkline of plain rounded bars at the bottom right. Only the value text follows the live
+//! tick.
 
 use floem::prelude::*;
 use floem::taffy::AlignItems;
 
+use super::live::Live;
 use super::style::{self, Weight, color, pill, px, text};
 use crate::dash::{self, Kpi};
 
 /// Returns the row of metric cards.
-pub fn view() -> impl IntoView {
-    Stack::horizontal_from_iter(dash::KPIS.iter().map(card)).style(|s| {
+pub fn view(live: Live) -> impl IntoView {
+    let cards = dash::KPIS
+        .iter()
+        .enumerate()
+        .map(move |(index, kpi)| card(index, kpi, live));
+    Stack::horizontal_from_iter(cards).style(|s| {
         s.flex_shrink(0.0_f32)
             .width_full()
             .height(px(dash::KPI_HEIGHT))
@@ -17,8 +23,9 @@ pub fn view() -> impl IntoView {
     })
 }
 
-/// One metric card: the texts on the left, the sparkline at the bottom right.
-fn card(kpi: &Kpi) -> impl IntoView {
+/// Metric card `index`: the texts on the left, the sparkline at the bottom right. The value
+/// follows the live tick.
+fn card(index: usize, kpi: &Kpi, live: Live) -> impl IntoView {
     let (pill_bg, pill_text) = if kpi.up {
         (dash::UP_BG, dash::UP_TEXT)
     } else {
@@ -27,7 +34,9 @@ fn card(kpi: &Kpi) -> impl IntoView {
     // Each text sits at the top of a band that reaches the next one: the label at card y 18,
     // the value at 40, the pill at 78.
     let label = band(text(kpi.label, 13.0, Weight::Normal, dash::MUTED), 22.0);
-    let value = band(text(kpi.value, 24.0, Weight::Bold, dash::TEXT), 38.0);
+    let value = Label::derived(move || dash::kpi_value(index, live.tick.get()))
+        .style(|s| style::font(s, 24.0, Weight::Bold, dash::TEXT));
+    let value = band(value, 38.0);
     let delta = Container::new(text(kpi.delta, 12.0, Weight::Semibold, pill_text))
         .style(move |s| pill(s, 22.0, 8.0, pill_bg).align_self(AlignItems::FlexStart));
     let texts = Stack::vertical((label, value, delta)).style(|s| s.align_self(AlignItems::FlexStart));

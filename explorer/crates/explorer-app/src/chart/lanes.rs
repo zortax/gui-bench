@@ -1,4 +1,4 @@
-//! A lane plot: one row per framework and variant with one thin lane per iteration on the time
+//! A lane plot: one row per framework with one thin lane per iteration on the time
 //! axis of the iteration. A lane shows its window, the span between its first and last present,
 //! and every late frame as a bar over its interval, colored by the refreshes it missed. A lane that
 //! lists only its slowest frames takes the color of its typical frame. Stalled frames show as
@@ -42,7 +42,7 @@ pub struct Lane {
     pub gaps: Vec<LaneGap>,
 }
 
-/// The lanes of one framework and variant.
+/// The lanes of one framework.
 #[derive(Debug, Clone, PartialEq)]
 pub struct LaneRow {
     pub key: String,
@@ -287,7 +287,9 @@ pub fn LanePlot(#[prop(into)] model: Signal<LanesModel>) -> impl IntoView {
                 let label_y = top + row_height(r) / 2.0;
                 view! {
                     <g class="gx-row" data-dim=dim>
-                        {(ri % 2 == 1).then(|| view! { <rect class="gx-rowband" x="0" y=f(top) width=f(right + 6.0) height=f(row_height(r))/> })}
+                        // A hairline parts the rows. A band behind every other row would sit between
+                        // the tones of the lanes and hide the frames that are on time.
+                        {(ri > 0).then(|| view! { <line class="gx-rowrule" x1="0" x2=f(right + 6.0) y1=f(top) y2=f(top)/> })}
                         <text class="gx-rowlabel" x=f(left - 8.0) y=f(label_y) text-anchor="end" dominant-baseline="middle" style:fill=r.ink.clone()>{r.label.clone()}</text>
                         {lanes}
                     </g>

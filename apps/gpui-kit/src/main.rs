@@ -3,30 +3,17 @@
 #[path = "../../shared/cli.rs"]
 mod cli;
 mod dashboard;
-mod page;
-mod rows;
-mod search;
-#[path = "../../shared/spec.rs"]
-mod spec;
-mod spinner;
-mod table;
-mod virtual_rows;
 
 use gpui_kit::*;
 
-use crate::cli::{Scenario, Variant};
-use crate::dashboard::Dashboard;
-use crate::rows::Rows;
-use crate::search::Search;
-use crate::spinner::Spinner;
-use crate::table::{CoarseTable, FineTable};
-use crate::virtual_rows::VirtualRows;
+use crate::cli::Scenario;
+use crate::dashboard::{Dashboard, OrderList, spec};
 
 const NAME: &str = "gpui-kit-bench";
 const APP_ID: &str = "gui-bench.gpui-kit";
 
 fn main() {
-    let scenario = cli::from_env(NAME, &[Variant::Fine, Variant::Coarse]);
+    let scenario = cli::from_env(NAME);
     // `apps/gpui-kit-fast` builds the same sources with the `gpui-fast` feature.
     eprintln!("{NAME}: gpui-fast {}", gpui_kit::GPUI_FAST);
 
@@ -34,8 +21,10 @@ fn main() {
     let app = gpui_kit::application().with_assets(gpui_kit::assets::Assets);
     app.run(move |cx| {
         gpui_kit::init(cx);
-        table::keys::bind(cx);
+        dashboard::apply_theme(cx);
+        let bounds = Bounds::centered(None, size(px(spec::WINDOW.0), px(spec::WINDOW.1)), cx);
         let options = WindowOptions {
+            window_bounds: Some(WindowBounds::Windowed(bounds)),
             titlebar: Some(TitlebarOptions {
                 title: Some(scenario.title().into()),
                 ..Default::default()
@@ -45,41 +34,14 @@ fn main() {
             ..Default::default()
         };
         let opened = match scenario {
-            Scenario::Rows { count } => {
-                gpui_kit::open_window(options, cx, |_, cx| cx.new(|_| Rows::new(count))).map(drop)
-            }
-            Scenario::Virtual { count } => {
-                gpui_kit::open_window(options, cx, |_, cx| cx.new(|_| VirtualRows::new(count)))
-                    .map(drop)
-            }
-            Scenario::Table {
-                count,
-                variant: Variant::Coarse,
-                ticker,
-            } => gpui_kit::open_window(options, cx, |window, cx| {
-                cx.new(|cx| CoarseTable::new(count, ticker, window, cx))
-            })
-            .map(drop),
-            Scenario::Table { count, ticker, .. } => {
-                gpui_kit::open_window(options, cx, |window, cx| {
-                    cx.new(|cx| FineTable::new(count, ticker, window, cx))
-                })
-                .map(drop)
-            }
-            Scenario::Spinner { count } => {
-                gpui_kit::open_window(options, cx, |_, cx| cx.new(|_| Spinner::new(count)))
-                    .map(drop)
-            }
-            Scenario::Search { count, filter } => {
-                gpui_kit::open_window(options, cx, |window, cx| {
-                    cx.new(|cx| Search::new(count, filter, window, cx))
-                })
-                .map(drop)
-            }
-            Scenario::Dashboard { count } => gpui_kit::open_window(options, cx, |window, cx| {
+            Scenario::App { count } => gpui_kit::open_window(options, cx, |window, cx| {
                 cx.new(|cx| Dashboard::new(count, window, cx))
             })
             .map(drop),
+            Scenario::List { count } => {
+                gpui_kit::open_window(options, cx, |_, cx| cx.new(|_| OrderList::new(count)))
+                    .map(drop)
+            }
         };
         opened.expect("failed to open window");
         cx.activate(true);

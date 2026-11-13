@@ -36,7 +36,7 @@ dioxus-native = { version = "0.8.0-alpha.3", default-features = false, features 
     "text-transform-icu",
     "apple-font-embolden",
 ] }
-# The ticker sleeps with tokio, as the Dioxus docs do; dioxus-native runs a tokio runtime.
+# The live timer sleeps with tokio, as the Dioxus docs do; dioxus-native runs a tokio runtime.
 tokio = { version = "1", features = ["time"] }
 
 [profile.release]

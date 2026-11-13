@@ -5,8 +5,9 @@ use std::sync::Arc;
 use explorer_core::api::RunOverview;
 use leptos::prelude::*;
 
+use super::builds::Builds;
+use super::capacity::CapacityCards;
 use super::health::Health;
-use super::scorecard::Scorecard;
 use crate::state::RunView;
 use crate::views::Provenance;
 use crate::views::kit::ViewHead;
@@ -18,16 +19,17 @@ pub fn OverviewView() -> impl IntoView {
         <div class="gx-view">
             <ViewHead
                 title="Overview"
-                text="The run at a glance: where it comes from, how healthy its reports are, and how every framework fares on the key metric of each scenario."
+                text="The run at a glance: how large the app can grow before an interaction misses a 144 Hz or a 60 Hz frame, where the run comes from, how healthy its reports are, and what each app builds by hand."
             />
             <RunView view={move |o: Arc<RunOverview>| view! {
-                <Scorecard overview=o.clone()/>
+                <CapacityCards overview=o.clone()/>
                 <div class="gx-grid gx-grid--wide">
                     <section class="gx-card">
                         <h3 class="gx-chart__title">"Provenance"</h3>
                         <Provenance overview=o.clone()/>
                     </section>
-                    <Health overview=o/>
+                    <Health overview=o.clone()/>
+                    <Builds overview=o/>
                 </div>
             }}/>
         </div>

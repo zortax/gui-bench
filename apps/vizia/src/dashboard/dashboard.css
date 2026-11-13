@@ -180,20 +180,58 @@ button.primary {
     shadow: 0px 1px 3px #11182740;
 }
 
-.topbar-tools {
-    size: auto;
+/* The live switch at x 976 and the spinner at x 1040, each at the left of a cell that reaches
+   the next control. */
+.live {
+    width: 84px;
+    height: auto;
+    padding-left: 20px;
     alignment: left;
-    gap: 144px;
 }
 
-.topbar-actions {
-    size: auto;
+.spinner-cell {
+    width: 60px;
+    height: auto;
     alignment: left;
-    gap: 24px;
 }
 
-button.export {
+.spinner {
+    size: 24px;
+    corner-radius: 6px;
+    background-color: #4f46e5;
+}
+
+/* The export button and its menu: x 1100..1260 from y 54. */
+dropdown.export {
     width: 96px;
+    height: 36px;
+}
+
+dropdown.export > popup {
+    width: 160px;
+    min-width: 160px;
+    padding: 4px;
+    corner-radius: 8px;
+    border-width: 1px;
+    border-color: #e5e7eb;
+    background-color: #ffffff;
+    shadow: 0px 4px 12px #1118271a;
+}
+
+dropdown.export menubutton {
+    height: 36px;
+    padding-left: 12px;
+    padding-right: 12px;
+    corner-radius: 6px;
+}
+
+dropdown.export menubutton:hover {
+    background-color: #f3f4f6;
+}
+
+.topbar-avatar-cell {
+    size: auto;
+    padding-left: 24px;
 }
 
 .topbar-avatar {
@@ -475,25 +513,57 @@ switch:checked .thumb {
     color: #6b7280;
 }
 
-.col-order {
+.orders-header > .col-order,
+.order > .col-order {
     width: 116px;
 }
 
-.col-customer {
+.orders-header > .col-customer,
+.order > .col-customer {
     width: 300px;
 }
 
-.col-status {
+.orders-header > .col-status,
+.order > .col-status {
     width: 160px;
 }
 
-.col-progress {
+.orders-header > .col-progress,
+.order > .col-progress {
     width: 120px;
 }
 
-.col-amount {
+.orders-header > .col-amount,
+.order > .col-amount {
     width: 1s;
     text-align: right;
+}
+
+/* The amount title sorts the orders; it fills the 120 px at the end of its column. */
+.orders-header > .col-amount {
+    height: 1s;
+    alignment: right;
+}
+
+.orders-header .sort {
+    width: 120px;
+    height: 1s;
+    alignment: right;
+    text-align: right;
+}
+
+.orders-header .sort.sorted {
+    color: #4f46e5;
+}
+
+/* The list of the orders is as tall as its rows and scrolls with the page. */
+.orders list,
+.orders list > scrollview {
+    height: auto;
+}
+
+.orders list-item {
+    height: 52px;
 }
 
 .order {
@@ -505,7 +575,7 @@ switch:checked .thumb {
     background-image: linear-gradient(to bottom, transparent 51px, #f3f4f6 51px);
 }
 
-.order:last-child {
+.orders list-item:last-child > .order {
     corner-bottom-left-radius: 12px;
     corner-bottom-right-radius: 12px;
 }
@@ -514,7 +584,7 @@ switch:checked .thumb {
     background-color: #eef2ff;
 }
 
-.order-number {
+.order > .order-number {
     color: #6b7280;
 }
 
@@ -524,7 +594,7 @@ switch:checked .thumb {
     gap: 12px;
 }
 
-.avatar {
+.order .avatar {
     size: 28px;
     alignment: center;
     corner-radius: 50%;
@@ -538,7 +608,7 @@ switch:checked .thumb {
     alignment: left;
 }
 
-.pill {
+.order .pill {
     height: 22px;
     padding-left: 10px;
     padding-right: 10px;
@@ -548,27 +618,27 @@ switch:checked .thumb {
     font-weight: semi-bold;
 }
 
-.pill.paid {
+.order .pill.paid {
     background-color: #dcfce7;
     color: #166534;
 }
 
-.pill.refunded {
+.order .pill.refunded {
     background-color: #fee2e2;
     color: #991b1b;
 }
 
-.pill.shipped {
+.order .pill.shipped {
     background-color: #dbeafe;
     color: #1e40af;
 }
 
-.pill.pending {
+.order .pill.pending {
     background-color: #fef3c7;
     color: #92400e;
 }
 
-.progress {
+.order > .progress {
     height: 6px;
     corner-radius: 3px;
     background-color: #e5e7eb;
@@ -584,10 +654,96 @@ switch:checked .thumb {
     font-weight: semi-bold;
 }
 
-/* The scrollbar thumb stays visible, as in the rows scenario. */
+/* The scrollbar thumb stays visible. */
 scrollview.content.v-scroll > scrollbar.vertical > .thumb,
 scrollview.content.v-scroll:hover > scrollbar.vertical > .thumb,
 scrollview.content.v-scroll:active > scrollbar.vertical > .thumb {
+    background-color: #c1c1c1;
+    opacity: 1;
+}
+
+/* MESSAGES */
+
+.feed {
+    gap: 12px;
+}
+
+.message {
+    height: auto;
+    padding-top: 16px;
+    padding-bottom: 16px;
+    padding-left: 20px;
+    padding-right: 20px;
+    gap: 12px;
+}
+
+.message-avatar {
+    size: 36px;
+    alignment: center;
+    corner-radius: 50%;
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: semi-bold;
+}
+
+.message-text {
+    width: 1s;
+    height: auto;
+}
+
+.message-head {
+    height: 20px;
+    alignment: left;
+    gap: 8px;
+}
+
+.message-author {
+    font-weight: semi-bold;
+}
+
+.message-time {
+    font-size: 13px;
+    color: #6b7280;
+}
+
+.message-body {
+    width: 1s;
+    text-wrap: true;
+}
+
+/* EMPTY PAGE */
+
+.empty {
+    alignment: top-center;
+}
+
+.empty-label {
+    top: 48px;
+    color: #6b7280;
+}
+
+/* LIST SCENARIO */
+
+.list {
+    size: 1s;
+    background-color: #ffffff;
+}
+
+.list > .orders-header {
+    corner-radius: 0px;
+}
+
+/* The stock virtual list stretches its labels and indents them; the rows keep the look of the
+   app. */
+virtual-list .order label {
+    width: auto;
+    padding-left: 0px;
+}
+
+/* The scrollbar thumb stays visible, as in the app. */
+virtual-list > scrollview.v-scroll > scrollbar.vertical > .thumb,
+virtual-list > scrollview.v-scroll:hover > scrollbar.vertical > .thumb,
+virtual-list > scrollview.v-scroll:active > scrollbar.vertical > .thumb {
     background-color: #c1c1c1;
     opacity: 1;
 }

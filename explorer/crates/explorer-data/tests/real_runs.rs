@@ -41,9 +41,6 @@ fn loads_every_readable_run() {
                 if m.sections.iter().any(|s| s == "frame_pacing") {
                     run.frames_detail(cell.id, &m.name).unwrap();
                 }
-                if m.sections.iter().any(|s| s == "typing") {
-                    run.typing_detail(cell.id, &m.name).unwrap();
-                }
                 if m.sections.iter().any(|s| s == "resize") {
                     run.resize_detail(cell.id, &m.name).unwrap();
                 }
@@ -60,12 +57,17 @@ fn frame_profiles_place_gaps_inside_their_iterations() {
         return;
     };
     let store = Store::new(dir);
-    let Ok(run) = store.run("latest") else {
+    let Some(run) = store
+        .runs()
+        .iter()
+        .filter(|r| r.status == RunStatus::Ok)
+        .find_map(|r| store.run(&r.id).ok())
+    else {
         return;
     };
     let mut points: Vec<(explorer_data::Point, String)> = Vec::new();
     for cell in &run.overview.cells {
-        for m in ["scroll", "pacing", "resize"] {
+        for m in ["scroll", "scroll-fling", "live", "resize"] {
             if !cell.done.iter().any(|d| d == m) {
                 continue;
             }
@@ -73,7 +75,6 @@ fn frame_profiles_place_gaps_inside_their_iterations() {
                 scenario: cell.key.scenario.clone(),
                 hz: cell.key.hz,
                 rows: cell.key.rows,
-                updates: cell.key.updates,
             };
             if !points.iter().any(|(p, n)| *p == point && n == m) {
                 points.push((point, m.to_owned()));

@@ -9,4 +9,4 @@ mod selection;
 pub use explorer::{Explorer, RunView, provide_explorer, use_explorer};
 pub use prefs::{Prefs, PrefsSnapshot, ScalePref, Uncertainty};
 pub use query::{QueryWriter, use_param};
-pub use selection::{Selection, cells_of};
+pub use selection::{Selection, Size, cells_of, stop_of};

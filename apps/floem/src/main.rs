@@ -7,31 +7,23 @@ mod cli;
 #[path = "../../shared/dashboard.rs"]
 mod dash;
 mod dashboard;
-mod page;
-mod rows;
-mod search;
-#[path = "../../shared/spec.rs"]
-mod spec;
-mod spinner;
-mod table;
-mod virtual_rows;
 
 use floem::kurbo::Size;
 use floem::prelude::*;
 use floem::window::{Theme, WindowConfig};
 use floem::{AnyView, Application};
 
-use crate::cli::{Scenario, Variant};
+use crate::cli::Scenario;
 
 const NAME: &str = "floem-bench";
 
 fn main() {
-    let scenario = cli::from_env(NAME, &[Variant::Fine, Variant::Coarse, Variant::Shared]);
+    let scenario = cli::from_env(NAME);
     let config = WindowConfig::default()
         .title(scenario.title())
         .size(Size::new(
-            f64::from(spec::WINDOW.0),
-            f64::from(spec::WINDOW.1),
+            f64::from(dash::WINDOW.0),
+            f64::from(dash::WINDOW.1),
         ))
         .show_titlebar(false)
         .undecorated(true)
@@ -44,20 +36,7 @@ fn main() {
 /// Returns the window content of a scenario.
 fn content(scenario: Scenario) -> AnyView {
     match scenario {
-        Scenario::Rows { count } => rows::view(count).into_any(),
-        Scenario::Virtual { count } => virtual_rows::view(count).into_any(),
-        Scenario::Table {
-            count,
-            variant: Variant::Coarse,
-            ticker,
-        } => table::coarse::view(count, ticker).into_any(),
-        Scenario::Table {
-            count,
-            variant,
-            ticker,
-        } => table::fine::view(count, ticker, variant == Variant::Shared).into_any(),
-        Scenario::Spinner { count } => spinner::view(count).into_any(),
-        Scenario::Search { count, filter } => search::view(count, filter).into_any(),
-        Scenario::Dashboard { count } => dashboard::view(count).into_any(),
+        Scenario::App { count } => dashboard::view(count).into_any(),
+        Scenario::List { count } => dashboard::list::view(count).into_any(),
     }
 }

@@ -1,4 +1,4 @@
-//! The provenance of a run: revisions, host, output, effort, framework versions, the invocations
+//! The provenance of a run: revisions, host, output, effort, sizes, framework versions, the invocations
 //! that wrote it and the validity of its reports.
 
 use std::sync::Arc;
@@ -24,7 +24,9 @@ pub fn Provenance(overview: Arc<RunOverview>) -> impl IntoView {
         e.iterations.map(|v| format!("{v} iterations")),
         e.hover_repeats.map(|v| format!("{v} hover repeats")),
         e.op_repeats.map(|v| format!("{v} op repeats")),
-        e.churn_cycles.map(|v| format!("{v} churn cycles")),
+        e.launches.map(|v| format!("{v} launches")),
+        e.retries
+            .map(|v| format!("{v} retries of a disturbed measurement")),
     ]
     .into_iter()
     .flatten()
@@ -61,12 +63,23 @@ pub fn Provenance(overview: Arc<RunOverview>) -> impl IntoView {
                 <dd>
                     {p.output.map(|(w, h)| format!("{w}×{h} at scale 1"))}
                     {p.monitor.clone().map(|m| format!(" · {m}"))}
-                    {p.row_height.map(|r| format!(" · rows {r} px"))}
+                    {p.hz.map(|(main, slow)| format!(" · {main} Hz, pacing steps again at {slow} Hz where a cell misses refreshes"))}
                 </dd>
                 <dt>"effort"</dt>
                 <dd>{effort}</dd>
-                {p.scroll.map(|(v, s)| view! { <dt>"scroll"</dt><dd>{format!("{v} px/s for {s} s")}</dd> })}
-                {p.tick_ms.map(|t| view! { <dt>"ticker"</dt><dd>{format!("every {t} ms")}</dd> })}
+                {p.scroll.clone().map(|s| {
+                    let v = |v: Option<f64>| v.map_or("–".to_owned(), explorer_core::units::thousands);
+                    view! {
+                        <dt>"scroll"</dt>
+                        <dd>{format!(
+                            "glide {} px/s · wheel {} px/s · fling from {} px/s · {} s",
+                            v(s.glide_velocity), v(s.wheel_velocity), v(s.fling_velocity), v(s.seconds)
+                        )}</dd>
+                    }
+                })}
+                {p.elements.map(|(chrome, per_row)| view! {
+                    <dt>"elements"</dt><dd>{format!("{chrome} plus {per_row} per order")}</dd>
+                })}
                 {p.accessibility.map(|on| view! {
                     <dt>"accessibility"</dt>
                     <dd>{if on { "the sessions run an accessibility bus" } else { "off: no accessibility bus" }}</dd>
@@ -93,7 +106,7 @@ pub fn Provenance(overview: Arc<RunOverview>) -> impl IntoView {
                             <span class="gx-prov__versions">
                                 {p.versions.iter().map(|v| view! {
                                     <span title=v.source.clone().unwrap_or_default()>
-                                        {v.framework.clone()} " " <code>{format!("{} {}", v.krate, v.version)}</code>
+                                        {v.framework.clone()} " " <code>{version_text(v)}</code>
                                     </span>
                                 }).collect_view()}
                             </span>
@@ -116,4 +129,16 @@ pub fn Provenance(overview: Arc<RunOverview>) -> impl IntoView {
             </dl>
         </div>
     }
+}
+
+/// Returns the crate and version of a framework, with the revision of a source that is no
+/// release: `floem 0.2.0 @ 1351ffb`.
+fn version_text(v: &explorer_core::api::FrameworkVersion) -> String {
+    let revision = v
+        .source
+        .as_deref()
+        .and_then(|source| source.split_once(" @ "))
+        .map(|(_, revision)| format!(" @ {revision}"))
+        .unwrap_or_default();
+    format!("{} {}{revision}", v.krate, v.version)
 }

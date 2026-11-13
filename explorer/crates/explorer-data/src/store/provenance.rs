@@ -1,13 +1,13 @@
 //! The provenance of a run: the index header, the host from the first report, the faked output,
-//! the framework versions and invocations the index records, and the validity tally of every
-//! report.
+//! the builds, framework versions and invocations the index records, and the validity tally of
+//! every report.
 
 use std::collections::BTreeMap;
 use std::time::UNIX_EPOCH;
 
 use explorer_core::api::{
-    CheckStatus, CheckTally, Effort, FrameworkVersion, Invocation, Provenance, Revision,
-    ValidityTally,
+    Build, CheckStatus, CheckTally, Effort, Flag, FrameworkVersion, Invocation, Provenance,
+    Revision, ScrollSetup, ValidityTally,
 };
 
 use super::load::LoadedCell;
@@ -77,13 +77,39 @@ pub(super) fn collect(index: &RunIndex, entry: &Entry, cells: &[LoadedCell]) -> 
             iterations: effort_of("iterations"),
             hover_repeats: effort_of("hover_repeats"),
             op_repeats: effort_of("op_repeats"),
-            churn_cycles: effort_of("churn_cycles"),
+            launches: effort_of("launches"),
+            retries: effort_of("retries"),
         },
         output: index.output.as_ref().map(|o| (o.width, o.height)),
         monitor,
-        row_height: index.row_height,
-        scroll: index.scroll.as_ref().map(|s| (s.velocity, s.seconds)),
-        tick_ms: index.tick_ms,
+        hz: index
+            .hz
+            .as_ref()
+            .map(|h| (h.main, h.slow.unwrap_or(h.main))),
+        scroll: index.scroll.as_ref().map(|s| ScrollSetup {
+            glide_velocity: s.glide_velocity,
+            wheel_velocity: s.wheel_velocity,
+            fling_velocity: s.fling_velocity,
+            seconds: s.seconds,
+        }),
+        elements: index.elements.as_ref().map(|e| (e.chrome, e.per_row)),
+        builds: index
+            .builds
+            .iter()
+            .map(|(framework, b)| Build {
+                framework: framework.clone(),
+                app: b.app.clone().unwrap_or_else(|| framework.clone()),
+                binary_bytes: b.binary_bytes,
+                flags: b
+                    .flags
+                    .iter()
+                    .map(|f| Flag {
+                        part: f.part.clone(),
+                        note: f.note.clone(),
+                    })
+                    .collect(),
+            })
+            .collect(),
         scenarios: entry.summary.scenarios.clone(),
         frameworks: entry.summary.frameworks.clone(),
         environment,

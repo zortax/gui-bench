@@ -2,7 +2,7 @@
 
 use eframe::egui::{Context, ViewportBuilder};
 
-use crate::spec;
+use crate::dashboard::spec;
 
 const APP_ID: &str = "gui-bench.egui";
 

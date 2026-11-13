@@ -8,7 +8,9 @@ titles are Libertinus Sans from `../plots/fonts` (served at `/fonts`).
 
 ## Workspace
 - `crates/explorer-core`: pure. Wire types of the server functions (`api/`), statistics
-  (`stats/`), scale, tick and label math (`scale/`), unit formatting (`units/`). Tested natively.
+  (`stats/`), scale, tick and label math (`scale/`), unit formatting (`units/`), and the derived
+  numbers of the suite (`story/`: the steps that carry the story, capacity, slope). Tested
+  natively.
 - `crates/explorer-data`: server only, no Leptos. Run catalog, serde views of the run index and
   the fakeland reports, the run cache with metric columns, the detail loaders of one cell and the
   frame profiles of one matrix point.
@@ -26,8 +28,8 @@ titles are Libertinus Sans from `../plots/fonts` (served at `/fonts`).
 - `mod.rs` style for directory modules. `mod.rs` declares and re-exports; it holds no logic.
 - Modularize by feature, not by kind. A view owns its charts; the chart kernel owns its marks.
 - Small files, about 400 lines at most. Split a file before it needs a section-separator comment.
-- Express the domain in types (`MetricRef`, `CellKey`, `CellId`, `Stat`, `ScaleKind`,
-  `Uncertainty`). Stop before the types cost more than they save.
+- Express the domain in types (`MetricRef`, `CellKey`, `CellId`, `Part`, `Stat`, `Capacity`,
+  `ScaleKind`, `Uncertainty`). Stop before the types cost more than they save.
 - `thiserror` below the binaries, typed per module. `anyhow` in `main` only.
 
 ## Comments and docs
@@ -53,7 +55,8 @@ titles are Libertinus Sans from `../plots/fonts` (served at `/fonts`).
   (`float_roundtrip`), so values match bit for bit after the trip; still snap tiny remainders
   (shares, differences) to zero before they decide whether a mark exists.
 - A view that looks at one size and rate keeps them in the URL through
-  `views/kit::use_scope`, so the server renders the same scope as the browser.
+  `views/kit::use_scope`, so the server renders the same scope as the browser. Without a choice
+  the rate is the main rate of the run; the slower rate holds pacing cells only.
 - Charts stay cheap on hover: a chart wraps its model in one `Memo`, reads it with `with`/`read`
   (never `get` in event handlers), and highlights through reactive attributes on series, never by
   re-rendering the SVG. Series colors are CSS variables on the series group.
@@ -73,6 +76,24 @@ titles are Libertinus Sans from `../plots/fonts` (served at `/fonts`).
   cargo-leptos builds: the two share artifacts with other features, and incremental objects go
   stale (linker: undefined hidden symbol). `CARGO_INCREMENTAL=0` avoids it; after it happened,
   `cargo clean -p explorer-app -p explorer-server`.
+
+## Run data
+- The explorer reads run format 3 (`../runner/src/index.rs`, `../README.md`): scenarios `app` and
+  `list`, cells `<scenario>/<framework>/<hz>hz/<rows>/`. A cell is a scenario, a framework (or
+  edition), a refresh rate and a row count; `elements` is the size of the app on size axes. Runs
+  of another format show as unsupported (`explorer-data/src/catalog`).
+- The loader tolerates unknown fields and missing optional ones: serde views default every field
+  beyond the cell identity.
+- Derived numbers follow `../plots/*.py`, and change with them: the response time of a repeat is
+  input to commit plus the median commit to GPU-ready (`<step>.latency.response_ms`); the missed
+  share of an iteration is missed over missed plus presented refreshes
+  (`<step>.frame_pacing.missed_share`, percent); startup is `content_ms` over the launches;
+  quantiles use the nearest rank with ties to the even index, as Python rounds. Capacity and
+  slope live in `explorer-core/src/story`.
+- Mark what the plots mark: invalid reports (ring), sizes that did not run (cross), parts built by
+  hand (hollow; `story::part_of` maps a measurement to its part, `Provenance::flagged` says
+  whether the app of a framework builds it), editions (dashed, next to their framework;
+  `palette::EDITIONS` mirrors `../plots/common.py`).
 
 ## Styling
 - SCSS in `style/`, one partial per feature, BEM classes with the `gx-` prefix, `data-*`

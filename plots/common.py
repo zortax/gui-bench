@@ -1,8 +1,8 @@
 """Shared loading and styling of the gui-bench plots.
 
-A run directory (format 2) holds `run.json` and one directory per cell,
-`<scenario>/<framework>/<variant>/<hz>hz/<size>/`, with `cell.json` and the
-measurement reports as JSON.
+A run directory (format 3) holds `run.json` and one directory per cell,
+`<scenario>/<framework>/<hz>hz/<rows>/`, with `cell.json` and the measurement
+reports as JSON.
 """
 
 import json
@@ -63,44 +63,63 @@ PASTELS = [p for p, _, _ in HUES]
 INKS = [i for _, i, _ in HUES]
 # An edition of a framework (another build of the same app) takes its framework's hue, one step
 # deeper, and sorts right after it.
-EDITIONS = {"gpui-kit-fast": "gpui-kit", "freya-056a5b4": "freya", "dioxus-skia": "dioxus"}
-# Variants of the table and ticker are a second encoding on top of the framework color.
-VARIANTS = ["fine", "shared", "coarse", "default"]
-VARIANT_MARKER = {"fine": "o", "shared": "D", "coarse": "s", "default": "o"}
-VARIANT_NAME = {"fine": "fine", "shared": "shared signal", "coarse": "coarse", "default": "one variant"}
-# Refresh rates are a second encoding on top of the framework color.
-HZ_STYLE = {60.0: ("-", "o"), 120.0: ("-.", "^"), 144.0: ("--", "s")}
+EDITIONS = {"gpui-kit-tuned": "gpui-kit", "gpui-kit-fast": "gpui-kit", "iced-tuned": "iced",
+            "freya-056a5b4": "freya", "dioxus-skia": "dioxus"}
 MIB = 1024.0 * 1024.0
+# The frame budgets in milliseconds: one refresh at 144 Hz and at 60 Hz.
+BUDGETS = [(144, 1000.0 / 144.0), (60, 1000.0 / 60.0)]
+# The share of missed refreshes up to which a scroll, a resize or an animation counts as smooth.
+SMOOTH_SHARE = 0.01
+# The responses of the app scenario: the report, and what the user does.
+RESPONSES = [
+    ("hover-row", "Hover a table row"),
+    ("hover-nav", "Hover a nav item"),
+    ("key-type", "Type a character"),
+    ("click-compare", "Toggle the chart compare"),
+    ("click-menu", "Open the menu"),
+    ("click-sort", "Sort the table"),
+    ("click-filter", "Filter by status"),
+    ("key-search", "Search: hide every row"),
+    ("page-messages", "Switch to the messages"),
+    ("page-overview", "Switch to the overview"),
+]
+# The part of the app that a measurement exercises, where an app may build that part by hand.
+PARTS = {"click-menu": "menu", "live": "spinner"}
+# The pacing measurements of the app scenario: the report, and what the user does.
+PACED = [
+    ("scroll", "Scroll, touchpad glide"),
+    ("scroll-fling", "Scroll, fling"),
+    ("live", "Live values and spinner"),
+]
 
 
 @dataclass
 class Cell:
-    """The reports of one scenario, framework, variant, refresh rate and size."""
+    """The reports of one scenario, framework, refresh rate and size."""
 
     scenario: str
     framework: str
-    variant: str
     hz: float
     rows: int
-    updates: int | None
+    elements: int | None
+    part: str
+    stopped: str | None
     path: Path
     meta: dict
     files: dict = field(default_factory=dict)
 
     def report(self, name):
-        """Returns a loaded report such as `hover`, `idle` or `op-swap`, or None."""
+        """Returns a loaded report such as `hover-row`, `idle` or `scroll`, or None."""
         return self.files.get(name)
 
     @property
     def label(self):
-        """The framework, with the variant when it has one."""
-        return self.framework if self.variant == "default" else f"{self.framework} {self.variant}"
+        return self.framework
 
     @property
     def size(self):
-        """The size as text: the row count, with the ticker updates."""
-        rows = f"{self.rows:,} rows"
-        return rows if self.updates is None else f"{rows}, {self.updates} updates/tick"
+        """The size on the x axis: the elements of the app, or the rows of the list."""
+        return self.elements if self.elements is not None else self.rows
 
 
 @dataclass
@@ -123,16 +142,31 @@ class Run:
     def rates(self, scenario=None):
         return sorted({c.hz for c in self.cells if scenario is None or c.scenario == scenario})
 
-    def sizes(self, scenario):
-        return sorted({(c.rows, c.updates or 0) for c in self.cells if c.scenario == scenario})
+    def series(self, framework, scenario="app", hz=None):
+        """Returns the cells of one framework that ran at the main rate (or at `hz`), by size."""
+        hz = hz or self.index["hz"]["main"]
+        return sorted((c for c in self.of(scenario, framework=framework, hz=hz) if not c.stopped),
+                      key=lambda c: c.rows)
 
-    def series(self, framework, hz, scenario="rows", variant=None):
-        """Returns the cells of one framework and rate, by row count."""
-        return sorted(
-            (c for c in self.of(scenario, framework=framework, hz=hz)
-             if variant is None or c.variant == variant),
-            key=lambda c: c.rows,
-        )
+    def stop(self, framework, scenario="app"):
+        """Returns the smallest size that a framework did not run because it was over the
+        response budget before, or None."""
+        sizes = [c.size for c in self.of(scenario, framework=framework) if c.stopped]
+        return min(sizes) if sizes else None
+
+    def version(self, framework):
+        """Returns the crate version of a framework as text, with the revision of a source that
+        is no release, such as `0.2.0 @ 1351ffb`, or an empty text."""
+        entry = self.index.get("framework_versions", {}).get(framework)
+        if not entry:
+            return ""
+        _, _, revision = entry.get("source", "").partition(" @ ")
+        return entry["version"] + (f" @ {revision}" if revision else "")
+
+    def flagged(self, framework, part):
+        """Returns the note of a part that the app of a framework builds by hand, or None."""
+        build = self.index.get("builds", {}).get(framework, {})
+        return next((f["note"] for f in build.get("flags", []) if f["part"] == part), None)
 
     def color(self, framework):
         return color(framework)
@@ -173,29 +207,33 @@ def framework_rank(framework):
 
 
 def order_key(cell):
-    """Sorts cells by framework order, then variant order."""
-    fw = framework_rank(cell.framework)
-    var = VARIANTS.index(cell.variant) if cell.variant in VARIANTS else 99
-    return (fw, var)
+    """Sorts cells by framework order, then size."""
+    return (framework_rank(cell.framework), cell.rows)
 
 
 def load(path):
-    """Loads a run directory of format 2."""
+    """Loads a run directory of format 3."""
     path = Path(path).resolve()
     index = json.loads((path / "run.json").read_text())
-    if index.get("format") != 2:
-        raise SystemExit(f"{path} is no run of format 2; plot it with the scripts of its commit")
+    if index.get("format") != 3:
+        raise SystemExit(f"{path} is no run of format 3; plot it with the scripts of its commit")
     cells = []
     for entry in index["cells"]:
         info = entry["cell"]
         cell_dir = path / entry["dir"]
-        cell = Cell(info["scenario"], info["framework"], info["variant"], float(info["hz"]),
-                    int(info["rows"]), info.get("updates"), cell_dir, entry)
+        cell = Cell(info["scenario"], info["framework"], float(info["hz"]), int(info["rows"]),
+                    info.get("elements"), info.get("part", "full"), entry.get("stopped"),
+                    cell_dir, entry)
         for file in cell_dir.glob("*.json"):
             if file.stem != "cell":
                 cell.files[file.stem] = json.loads(file.read_text())
         cells.append(cell)
     return Run(path, index, cells)
+
+
+def valid(report):
+    """Returns true when the host did not disturb a measurement."""
+    return bool(report) and report.get("validity", {}).get("valid", False)
 
 
 def section(report, name):
@@ -226,6 +264,49 @@ def latency_samples(report, key="total_ms"):
             if value is not None and not sample.get("timed_out"):
                 out.append(value)
     return out
+
+
+def response_samples(report):
+    """Returns the response time of every repeat of a probe in milliseconds: from the input to the
+    commit of the frame that shows the response, plus the median time until the GPU finished it.
+    The refresh the frame then waits for is not part of it."""
+    ready = metric(report, "latency", "commit_to_ready_p50") or 0.0
+    return [v + ready for v in latency_samples(report, "input_to_commit_ms")]
+
+
+def timeouts(report):
+    """Returns the probes of a report that saw no response."""
+    return metric(report, "latency", "timeouts") or 0.0
+
+
+def missed_shares(report):
+    """Returns, per iteration of a pacing measurement, the share of its refreshes that showed no
+    new frame: the missed refreshes over the missed and the presented ones."""
+    sec = section(report, "frame_pacing")
+    shares = []
+    for it in sec["iterations"] if sec else []:
+        missed, shown = it["report"].get("missed_vblanks"), it["report"].get("presented")
+        if missed is not None and shown is not None and missed + shown > 0:
+            shares.append(missed / (missed + shown))
+    return shares
+
+
+def missed_share(report):
+    """Returns the median share of refreshes without a new frame over the iterations, or None."""
+    shares = missed_shares(report)
+    return percentile(shares, 0.5) if shares else None
+
+
+def median_ci(values, draws=400, seed=1):
+    """Returns (median, low, high): the median and its 95 % bootstrap interval."""
+    import random
+    if not values:
+        return None
+    rng = random.Random(seed)
+    n = len(values)
+    medians = sorted(percentile([values[rng.randrange(n)] for _ in range(n)], 0.5)
+                     for _ in range(draws))
+    return (percentile(values, 0.5), medians[int(0.025 * draws)], medians[int(0.975 * draws)])
 
 
 def percentile(values, q):
@@ -314,12 +395,43 @@ def hstyle(ax, title=None, xlabel=None, note=None):
     ax.set_xlim(left=0)
 
 
-def rows_axis(ax, rows):
-    """A log row-count axis with a tick at every measured count."""
+def log_values(ax):
+    """A log value axis with plain numbers at the major ticks only."""
+    from matplotlib.ticker import NullFormatter
+    ax.set_yscale("log")
+    ax.yaxis.set_major_formatter(FuncFormatter(thousands))
+    ax.yaxis.set_minor_formatter(NullFormatter())
+
+
+def size_axis(ax, sizes, label="elements in the app"):
+    """A log size axis with a tick at every measured size."""
     ax.set_xscale("log")
-    ax.set_xticks(rows)
-    ax.set_xticklabels([f"{r:,}" for r in rows])
+    ax.set_xticks(sizes)
+    ax.set_xticklabels([compact(s) for s in sizes])
     ax.minorticks_off()
+    ax.set_xlabel(label)
+
+
+def compact(value):
+    """Formats a count in few characters: 558, 3.5k, 33k, 1M."""
+    if value >= 1_000_000:
+        return f"{value / 1_000_000:g}M"
+    if value >= 10_000:
+        return f"{value / 1000:.0f}k"
+    if value >= 1000:
+        return f"{value / 1000:.1f}k".replace(".0k", "k")
+    return f"{value:.0f}"
+
+
+def budget_lines(ax, upto=None):
+    """Draws the frame budgets as dotted lines, named outside the right edge of the panel."""
+    for hz, ms in BUDGETS:
+        if upto is not None and ms > upto:
+            continue
+        ax.axhline(ms, color=MUTED, linewidth=0.9, linestyle=(0, (1, 3)), zorder=1)
+        ax.annotate(f"{hz} Hz", xy=(1, ms), xycoords=("axes fraction", "data"), xytext=(3, 0),
+                    textcoords="offset points", va="center", fontsize=7.2, color=MUTED,
+                    annotation_clip=False)
 
 
 def end_labels(ax, items, gap=11):
@@ -376,25 +488,26 @@ def top_of_panels(fig, below=0.25):
     return 1 - fig._header - (0.32 + below) / fig.get_figheight()
 
 
-def legend(fig, run, rates=None, below_title=False, scenario=None, variants=None, y=None):
-    """A legend row under the title block: framework colors as chips, then refresh rates (line
-    style) or variants (marker shape) in muted ink."""
-    handles = [Line2D([], [], color=run.color(f), marker="o", linestyle="none", markersize=8,
-                      label=f) for f in run.frameworks(scenario)]
-    for hz in rates or []:
-        line, marker = HZ_STYLE.get(hz, ("-", "o"))
-        handles.append(Line2D([], [], color=MUTED, linestyle=line, marker=marker, markersize=5,
-                              linewidth=1.5, label=f"{hz:g} Hz"))
-    for v in variants or []:
-        handles.append(Line2D([], [], color=MUTED, marker=VARIANT_MARKER[v], linestyle="none",
-                              markersize=6, markerfacecolor=SURFACE, markeredgewidth=1.4,
-                              label=VARIANT_NAME[v]))
+def legend(fig, run, scenario=None, extra=()):
+    """A legend row under the title block: framework colors as chips, then `extra` handles in
+    muted ink."""
+    handles = [Line2D([], [], color=run.color(f), marker="o", markersize=7, linewidth=1.8,
+                      linestyle="--" if f in EDITIONS else "-", label=f)
+               for f in run.frameworks(scenario)]
+    handles += list(extra)
     height = fig.get_figheight()
-    y = y if y is not None else 1 - fig._header - 0.02 / height
+    y = 1 - fig._header - 0.02 / height
     fig._legend_row = True
-    fig.legend(handles=handles, loc="upper left", ncol=len(handles), fontsize=9.5,
+    per_row = max(1, int(fig.get_figwidth() / 1.45))
+    fig.legend(handles=handles, loc="upper left", ncol=min(len(handles), per_row), fontsize=9.5,
                labelcolor=TEXT, bbox_to_anchor=(0.4 / fig.get_figwidth() - 0.006, y),
                handletextpad=0.3, columnspacing=1.4, borderaxespad=0)
+
+
+def hand_built():
+    """The legend handle of a part that an app builds by hand."""
+    return Line2D([], [], color=MUTED, marker="o", linestyle="none", markersize=7,
+                  markerfacecolor=SURFACE, markeredgewidth=1.5, label="built by hand in the app")
 
 
 def panel_grid(nrows, ncols, axes_h, width, gap=1.3, legend=True, wspace=0.55, left=1.6,
@@ -411,7 +524,8 @@ def panel_grid(nrows, ncols, axes_h, width, gap=1.3, legend=True, wspace=0.55, l
 def subtitle(run, extra=None):
     idx = run.index
     out = idx["output"]
-    text = f"{out['width']}x{out['height']} at scale 1, {idx['effort']['iterations']} iterations per measurement"
+    text = (f"{out['width']}x{out['height']} at {idx['hz']['main']:g} Hz, "
+            f"{idx['effort']['iterations']} iterations per measurement")
     return f"{extra} · {text}" if extra else text
 
 
@@ -534,10 +648,10 @@ def latency_spread(report, key="total_ms"):
     return tuple(percentile(values, q) for q in (0.5, 0.25, 0.75, 0.05, 0.95))
 
 
-def dots(ax, cells, value, fmt="{:.1f}", label=None):
+def dots(ax, cells, value, fmt="{:.1f}", label=None, hollow_of=None):
     """A horizontal dot plot, one row per cell in framework order. `value(cell)` returns None,
     (median, lo, hi) or (median, q1, q3, lo, hi). The dot is the median in the framework color with
-    the variant's marker; a thin whisker spans lo..hi and a thick bar q1..q3. Rows of one framework
+    a round marker, hollow where `hollow_of(cell)` is true; a thin whisker spans lo..hi and a thick bar q1..q3. Rows of one framework
     share a light band. Returns the row labels."""
     cells = sorted(cells, key=order_key)
     n = len(cells)
@@ -576,9 +690,8 @@ def dots(ax, cells, value, fmt="{:.1f}", label=None):
             for end in (lo, hi):
                 ax.plot([end, end], [y - 0.17, y + 0.17], color=soft, linewidth=1.6,
                         solid_capstyle="round", zorder=2)
-        marker = VARIANT_MARKER.get(cell.variant, "o")
-        hollow = cell.variant == "coarse"
-        ax.plot([med], [y], marker=marker, markersize=7 if marker != "D" else 6,
+        hollow = hollow_of(cell) if hollow_of else False
+        ax.plot([med], [y], marker="o", markersize=7,
                 color=color_, markerfacecolor=SURFACE if hollow else color_,
                 markeredgewidth=1.6, markeredgecolor=color_, linestyle="none", zorder=3)
         right = max(v)
@@ -600,15 +713,47 @@ def dodge(xs, index, count, step=0.028):
     return [x * factor for x in xs]
 
 
-def band_line(ax, xs, med, lo, hi, color_, linestyle="-", marker="o", whisker=None):
+def band_line(ax, xs, med, lo, hi, color_, linestyle="-", marker="o", whisker=None,
+              hollow=False):
     """A median line with markers over a band from `lo` to `hi`, and optional thin whiskers
-    `whisker = (lows, highs)` at the points."""
+    `whisker = (lows, highs)` at the points. Hollow markers mark a part built by hand."""
     soft = _mix(color_, SURFACE, 0.55)
-    ax.fill_between(xs, lo, hi, color=soft, alpha=0.45, linewidth=0, zorder=1)
+    ax.fill_between(xs, lo, hi, color=soft, alpha=0.22, linewidth=0, zorder=1)
     if whisker:
         for x, a, b in zip(xs, *whisker):
             ax.plot([x, x], [a, b], color=soft, linewidth=1.1, zorder=2,
                     solid_capstyle="round")
     ax.plot(xs, med, color=color_, linewidth=2.2, linestyle=linestyle, marker=marker,
-            markersize=5.5, markeredgecolor=SURFACE, markeredgewidth=1.2, zorder=3,
+            markersize=5.5, markeredgecolor=color_ if hollow else SURFACE,
+            markerfacecolor=SURFACE if hollow else color_, markeredgewidth=1.2, zorder=3,
             solid_capstyle="round")
+
+
+def line_style(framework):
+    """The line style of a framework: editions are dashed."""
+    return "--" if framework in EDITIONS else "-"
+
+
+def matrix(ax, rows, columns, cells, row_inks=None):
+    """Draws a table of shaded cells. `cells[r][c]` is `(text, shade)`: `shade` in 0..1 picks the
+    step of one blue ramp, and None leaves the cell empty. Rows are named at the left, columns
+    above."""
+    import textwrap
+    light, dark = "#eef0f8", "#3f4f86"
+    ax.set_xlim(0, len(columns))
+    ax.set_ylim(len(rows), 0)
+    ax.axis("off")
+    ax._card = True
+    for r, name in enumerate(rows):
+        ax.text(-0.12, r + 0.5, name, ha="right", va="center", fontsize=9.5, fontweight="bold",
+                color=row_inks[r] if row_inks else TEXT)
+        for col, (text, shade) in enumerate(cells[r]):
+            fill = BAND if shade is None else _mix(light, dark, shade)
+            ax.add_patch(FancyBboxPatch((col + 0.03, r + 0.06), 0.94, 0.88,
+                                        boxstyle="round,pad=0,rounding_size=0.06",
+                                        facecolor=fill, edgecolor="none"))
+            ink_ = MUTED if shade is None else ("#ffffff" if shade > 0.55 else TEXT)
+            ax.text(col + 0.5, r + 0.5, text, ha="center", va="center", fontsize=9, color=ink_)
+    for col, name in enumerate(columns):
+        ax.text(col + 0.5, -0.12, textwrap.fill(name, 13), ha="center", va="bottom",
+                fontsize=8.6, color=TEXT_2, linespacing=1.05)

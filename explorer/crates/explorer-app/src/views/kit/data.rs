@@ -30,9 +30,12 @@ impl RunCols {
         self.col(m)?.of(cell)
     }
 
-    /// Returns the cell with a key.
+    /// Returns the cell of the same framework at the same matrix point.
     pub fn cell_of(&self, key: &CellKey) -> Option<&CellInfo> {
-        self.overview.cells.iter().find(|c| c.key == *key)
+        self.overview
+            .cells
+            .iter()
+            .find(|c| c.key.framework == key.framework && c.key.same_point(key))
     }
 }
 

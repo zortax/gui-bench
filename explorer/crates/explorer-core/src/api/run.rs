@@ -7,7 +7,7 @@ use super::{CellInfo, Provenance};
 /// Whether the explorer can read a run.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum RunStatus {
-    /// The run has format 2.
+    /// The run has the format the explorer reads.
     Ok,
     /// The run has another format or a broken index.
     Unsupported(String),

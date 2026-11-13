@@ -1,11 +1,14 @@
-//! The dashboard scenario: the analytics dashboard of `apps/shared/dashboard.rs`. One state
-//! struct holds what the controls change, and every pass builds the whole page from it (egui's
-//! immediate mode): a left panel for the sidebar, a top panel for the top bar, and a central panel
-//! with one vertical scroll area of cards.
+//! The app scenario: the analytics app of `apps/shared/dashboard.rs`. One state struct holds
+//! what the controls change, and every pass builds the whole window from it (egui's immediate
+//! mode): a left panel for the sidebar, a top panel for the top bar, and a central panel with one
+//! vertical scroll area that shows the page of the active nav item. The list scenario is `list`.
 
 mod chart;
 mod filters;
 mod kpis;
+pub mod list;
+mod live;
+mod messages;
 mod orders;
 mod sidebar;
 #[path = "../../../shared/dashboard.rs"]
@@ -16,21 +19,30 @@ mod topbar;
 
 use eframe::egui::{self, Align, CentralPanel, Frame, Layout, Margin, ScrollArea, Ui, vec2};
 
-use self::spec::{Order, Status};
+use self::live::Live;
+use self::orders::Orders;
+use self::spec::{Message, Page, Status};
+use self::style::{Weight, text};
 use crate::window;
 
-/// Opens the dashboard window with `count` orders and runs it until it closes.
+/// The space between the top of the content and the label of the empty page.
+const EMPTY_SPACE: f32 = spec::EMPTY_TOP - spec::CONTENT_PADDING;
+
+/// Opens the app window with `count` orders and `count` messages and runs it until it closes.
 pub fn run(title: &str, count: usize) -> eframe::Result {
     window::run(title, style::setup, move || Box::new(Dashboard::new(count)))
 }
 
-/// What the controls of the dashboard change.
+/// What the controls of the app change.
 struct Dashboard {
-    orders: Vec<Order>,
-    /// The active nav item.
+    orders: Orders,
+    messages: Vec<Message>,
+    /// The active nav item, which picks the page.
     nav: usize,
     /// The text of the search input.
     search: String,
+    /// The live updates of the metric cards.
+    live: Live,
     /// The selected segment of the chart, which is the series it shows.
     segment: usize,
     /// Whether the chart shows the previous period beside the current one.
@@ -42,26 +54,30 @@ struct Dashboard {
 impl Dashboard {
     fn new(count: usize) -> Self {
         Self {
-            orders: spec::orders(count),
+            orders: Orders::new(count),
+            messages: spec::messages(count),
             nav: 0,
             search: String::new(),
+            live: Live::default(),
             segment: 0,
             compare: false,
             shown: [true; Status::ALL.len()],
         }
     }
 
-    /// Checks every status, turns compare off, selects the first segment and clears the search.
+    /// Checks every status, turns compare off, selects the first segment, clears the search and
+    /// brings the order of the data back.
     fn reset(&mut self) {
         self.shown = [true; Status::ALL.len()];
         self.compare = false;
         self.segment = 0;
         self.search.clear();
+        self.orders.sort(false);
     }
 
-    /// Shows the content: the metric cards, the chart and filter cards, and the orders.
-    fn content(&mut self, ui: &mut Ui) {
-        kpis::show(ui);
+    /// Shows the overview: the metric cards, the chart and filter cards, and the orders.
+    fn overview(&mut self, ui: &mut Ui) {
+        kpis::show(ui, self.live.tick(ui));
         ui.add_space(spec::GAP);
         // The filter card first, from the right: the chart card takes the rest of the width, and
         // the switch and Reset change the chart before it is laid out.
@@ -80,20 +96,40 @@ impl Dashboard {
             });
         });
         ui.add_space(spec::GAP);
-        orders::show(ui, &self.orders, &self.shown, &self.search);
+        self.orders.show(ui, &self.shown, &self.search);
     }
+}
+
+/// Shows the empty page: its label, centered across the content.
+fn empty(ui: &mut Ui) {
+    ui.add_space(EMPTY_SPACE);
+    ui.vertical_centered(|ui| {
+        ui.label(text(
+            spec::EMPTY_LABEL,
+            spec::FONT_SIZE,
+            Weight::Regular,
+            spec::MUTED,
+        ));
+    });
 }
 
 impl eframe::App for Dashboard {
     fn ui(&mut self, ui: &mut Ui, _: &mut eframe::Frame) {
         sidebar::show(ui, &mut self.nav);
-        topbar::show(ui, &mut self.search);
+        let title = spec::NAV_ITEMS[self.nav];
+        topbar::show(ui, title, &mut self.search, &mut self.live);
         let page = Frame::new().fill(style::color(spec::PAGE_BG));
         CentralPanel::default().frame(page).show(ui, |ui| {
-            ScrollArea::vertical().auto_shrink(false).show(ui, |ui| {
+            // Every page scrolls on its own.
+            let scroll = ScrollArea::vertical().id_salt(self.nav).auto_shrink(false);
+            scroll.show(ui, |ui| {
                 Frame::new()
                     .inner_margin(Margin::same(spec::CONTENT_PADDING as i8))
-                    .show(ui, |ui| self.content(ui));
+                    .show(ui, |ui| match spec::page(self.nav) {
+                        Page::Overview => self.overview(ui),
+                        Page::Messages => messages::show(ui, &self.messages),
+                        Page::Empty => empty(ui),
+                    });
             });
         });
     }

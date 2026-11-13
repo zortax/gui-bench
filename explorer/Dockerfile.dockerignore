@@ -1,0 +1,17 @@
+# The build context of `explorer/Dockerfile` is the repository root. Keep everything out of it
+# except the explorer sources, the toolchain file, the plot fonts and the runs to ship.
+*
+!rust-toolchain.toml
+!explorer/
+explorer/target/
+explorer/Dockerfile
+explorer/Dockerfile.dockerignore
+!plots/
+plots/*
+!plots/fonts/
+!results/
+results/old/
+results/dev-*/
+results/latest
+results/*/plots/
+results/*/summary.csv

@@ -1,43 +1,64 @@
 //! The measurements that scenarios share. Each one runs a fakeland bench preset with parameters
 //! from the cell, adds the resource and frame-cost analyzers, and writes the report as
-//! `<name>.json`. Apps with app marks also get `phases-<name>.json`.
+//! `<name>.json`. Apps with app marks also get `phases-<name>.json`. A measurement that the host
+//! disturbs runs again.
 
 use anyhow::Context;
+use fakeland::scenario::Position;
 use fakeland::scenario::prelude::*;
+use fakeland::{CaptureOptions, CaptureTarget};
 use fakeland_bench::analyzers::{FrameCost, Resources};
 use fakeland_bench::presets::{self, PresetParams};
 use fakeland_bench::{Bench, BenchRun};
 use serde::Serialize;
-use serde_json::json;
+use serde_json::{Value, json};
 
 use crate::cell::CellRun;
-use crate::dashboard::Target;
-use crate::layout::{OUTPUT, Page, ROW_HEIGHT};
+use crate::dashboard::{Target, Toggle};
 use crate::phases;
 
-/// The scroll velocity in logical pixels per second.
-pub const SCROLL_VELOCITY: f64 = 800.0;
-/// The length of one scroll glide in seconds.
-pub const SCROLL_SECONDS: f64 = 1.0;
-/// The window y of the pointer during a glide.
-const SCROLL_POINTER_Y: i32 = 720;
-/// The height of the region that motion estimation reads, from the top of the window. It ends
-/// six rows above the pointer, so the hover color that trails the pointer stays outside.
-const SCROLL_ROI_HEIGHT: i32 = 512;
-/// The row that the hover probe enters, and the row the pointer rests on between repeats.
-const HOVER_ROW: i32 = 5;
-const AWAY_ROW: i32 = 1;
-/// How long the pacing and idle measurements last.
-const WINDOW_SECONDS: &str = "3s";
-/// The probe timeout: a coarse rebuild of 10 000 rows can take a while.
+/// The velocity of the scroll glide in logical pixels per second, and its length in seconds.
+pub const GLIDE_VELOCITY: f64 = 800.0;
+pub const GLIDE_SECONDS: f64 = 1.0;
+/// The start velocity of the fling in logical pixels per second. With the decay of the preset it
+/// travels about 2600 px.
+pub const FLING_VELOCITY: f64 = 8000.0;
+pub const FLING_TRAVEL: f64 = 2600.0;
+/// The velocity of the wheel scroll in logical pixels per second: about 13 detents a second.
+pub const WHEEL_VELOCITY: f64 = 200.0;
+/// The scroll events of a finger per refresh, so every frame can consume the same scroll.
+const EVENTS_PER_REFRESH: f64 = 4.0;
+/// How long the idle measurement lasts.
+const IDLE_SECONDS: f64 = 3.0;
+/// How long one iteration of the live measurement lasts.
+const LIVE_SECONDS: f64 = 2.0;
+/// The probe timeout: the rebuild of a large page can take a while.
 const PROBE_TIMEOUT: &str = "5s";
+/// The median response in milliseconds above which a cell stops: its other measurements would
+/// take minutes and say no more than that the app is past use at this size.
+const STOP_MS: f64 = 1000.0;
+/// The share of missed refreshes above which a pacing measurement counts as missing its rate.
+const MISSED_SHARE: f64 = 0.01;
 
-/// Builds a preset bench, adds the resource and frame-cost analyzers, and runs it.
+/// Builds a preset bench, adds the resource and frame-cost analyzers, and runs it. A run whose
+/// report is invalid, because the compositor woke late or the host was busy, runs again, at most
+/// `effort.retries` times; the last run counts.
 pub fn bench(run: &CellRun, preset: &str, params: &PresetParams) -> anyhow::Result<BenchRun> {
-    let bench = presets::by_name(preset)
-        .with_context(|| format!("no preset {preset}"))?
-        .bench(params)?;
-    Ok(with_cost(bench).blocking_run(&run.session)?)
+    let mut attempt = 0;
+    loop {
+        let bench = presets::by_name(preset)
+            .with_context(|| format!("no preset {preset}"))?
+            .bench(params)?;
+        let result = with_cost(bench).blocking_run(&run.session)?;
+        if result.report_ref().validity.valid || attempt >= run.effort.retries {
+            return Ok(result);
+        }
+        attempt += 1;
+        eprintln!(
+            "      the host disturbed the measurement; attempt {}",
+            attempt + 1
+        );
+    }
 }
 
 /// Adds the resource analyzer when the bench lacks it, and the frame-cost analyzer.
@@ -50,19 +71,56 @@ fn with_cost(bench: Bench) -> Bench {
     bench.analyze(FrameCost::default())
 }
 
-/// Runs a preset bench and writes its report as `<name>.json`.
+/// Runs a preset bench, writes its report as `<name>.json` and returns the report as JSON.
 pub fn measure(
     run: &CellRun,
     name: &str,
     preset: &str,
     params: &PresetParams,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<Value> {
     let result = bench(run, preset, params)?;
-    run.save(&format!("{name}.json"), &result.report())?;
+    let report = result.report();
+    run.save(&format!("{name}.json"), &report)?;
     if run.fw.marks {
         run.save(&format!("phases-{name}.json"), &phases_of(&result))?;
     }
+    let report = serde_json::to_value(&report)?;
+    let slow = metric(&report, "latency", "input_to_commit_p50").is_some_and(|ms| ms > STOP_MS);
+    let unanswered = metric(&report, "latency", "timeouts").is_some_and(|n| n > 0.0);
+    if slow || unanswered {
+        run.over.set(true);
+    }
+    Ok(report)
+}
+
+/// Runs a pacing measurement and notes in the cell when it misses more than `MISSED_SHARE` of the
+/// refreshes of its `seconds`.
+pub fn measure_pacing(
+    run: &CellRun,
+    name: &str,
+    preset: &str,
+    params: &PresetParams,
+    seconds: f64,
+) -> anyhow::Result<()> {
+    let report = measure(run, name, preset, params)?;
+    if let Some(missed) = metric(&report, "frame_pacing", "missed_vblanks")
+        && missed > MISSED_SHARE * seconds * run.cell.hz
+    {
+        run.missed.set(true);
+    }
     Ok(())
+}
+
+/// Returns the median over the iterations of a metric of a report section.
+pub fn metric(report: &Value, section: &str, name: &str) -> Option<f64> {
+    report["sections"]
+        .as_array()?
+        .iter()
+        .find(|s| s["name"] == section)?["metrics"]
+        .as_array()?
+        .iter()
+        .find(|m| m["name"] == name)?["median"]
+        .as_f64()
 }
 
 fn phases_of(run: &BenchRun) -> impl Serialize {
@@ -84,32 +142,25 @@ fn common(iterations: u32) -> PresetParams {
 pub fn idle() -> PresetParams {
     PresetParams::new()
         .set("iterations", 1)
-        .set("duration", WINDOW_SECONDS)
+        .set("duration", format!("{IDLE_SECONDS}s"))
         .set("suspend", true)
         .set("capture", true)
         .set("downscale", 2)
 }
 
-/// The pacing measurement of a running animation or ticker.
-pub fn pacing(run: &CellRun) -> PresetParams {
-    common(run.effort.iterations).set("duration", WINDOW_SECONDS)
+/// The pacing measurement of the live updates, and its length in seconds. It has no warmup: the
+/// app has run live for a second when it starts.
+pub fn pacing(run: &CellRun) -> (PresetParams, f64) {
+    let params = PresetParams::new()
+        .set("iterations", run.effort.iterations)
+        .set("warmup", 0)
+        .set("duration", format!("{LIVE_SECONDS}s"));
+    (params, LIVE_SECONDS)
 }
 
-/// The hover probe: the pointer enters row 5 from row 1, and the pixels of row 5 tell the change.
-/// `detector` is `pixels` or `app_mark`.
-pub fn hover(run: &CellRun, page: Page, detector: &str) -> PresetParams {
-    let x = OUTPUT.0 / 2;
-    let target = Target {
-        at: (x, page.row_center(HOVER_ROW)),
-        away: (x, page.row_center(AWAY_ROW)),
-        roi: page.rows_roi(HOVER_ROW, 1),
-    };
-    hover_at(run, &target, detector)
-}
-
-/// A hover probe of any element: the pointer enters `target.at` from `target.away`, and the
-/// pixels of `target.roi` tell the change.
-pub fn hover_at(run: &CellRun, target: &Target, detector: &str) -> PresetParams {
+/// A hover probe: the pointer enters `target.at` from `target.away`, and the pixels of
+/// `target.roi` tell the change. `detector` is `pixels` or `app_mark`.
+pub fn hover(run: &CellRun, target: &Target, detector: &str) -> PresetParams {
     common(run.effort.iterations)
         .set("position", point(target.at))
         .set("away", point(target.away))
@@ -120,62 +171,30 @@ pub fn hover_at(run: &CellRun, target: &Target, detector: &str) -> PresetParams 
 }
 
 /// Returns a window point as preset JSON.
-fn point((x, y): (i32, i32)) -> serde_json::Value {
+fn point((x, y): (i32, i32)) -> Value {
     json!({ "x": x, "y": y })
 }
 
-/// Returns true when a list of `rows` rows is tall enough for a glide in both directions.
-pub fn scrolls(rows: u32) -> bool {
-    let travel = SCROLL_VELOCITY * SCROLL_SECONDS;
-    f64::from(rows) * f64::from(ROW_HEIGHT) >= f64::from(OUTPUT.1) + travel * 1.5
-}
-
-/// The scroll glide: a finger at 800 px/s with no kinetic tail, four events per refresh, so every
-/// frame consumes the same scroll. Motion estimation reads the rows above the pointer.
-pub fn scroll(run: &CellRun) -> PresetParams {
-    let roi = json!({ "x": 0, "y": 0, "w": OUTPUT.0, "h": SCROLL_ROI_HEIGHT });
-    scroll_at(run, (OUTPUT.0 / 2, SCROLL_POINTER_Y), roi)
-}
-
-/// The scroll glide with the pointer at `pointer`, and motion estimation in `roi`.
-pub fn scroll_at(run: &CellRun, pointer: (i32, i32), roi: serde_json::Value) -> PresetParams {
-    PresetParams::new()
-        .set("source", json!({ "type": "finger", "kinetic": false }))
-        .set("velocity", SCROLL_VELOCITY)
-        .set("duration", format!("{SCROLL_SECONDS}s"))
-        .set("rate_hz", run.cell.hz * 4.0)
-        .set("position", point(pointer))
-        .set("roi", roi)
-        .set("iterations", run.effort.iterations + 1)
-        .set("warmup", 1)
-}
-
-/// A click probe on a row: the first click selects it, the second clears the selection. The
-/// button goes down and up at once, so apps that select on the press and apps that select on the
-/// release start from the same input time.
-pub fn click(run: &CellRun, page: Page, row: i32) -> PresetParams {
-    click_at(
-        run,
-        (OUTPUT.0 / 2, page.row_center(row)),
-        page.rows_roi(row, 1),
-    )
-}
-
-/// A click probe of any toggle: the click at `at` changes the pixels of `roi`, and the next click
-/// toggles it back.
-pub fn click_at(run: &CellRun, at: (i32, i32), roi: serde_json::Value) -> PresetParams {
-    common(run.effort.iterations)
-        .set("position", point(at))
+/// A click probe: the click at `toggle.at` changes the pixels of `toggle.roi`, and a click
+/// between repeats brings the state back. The button goes down and up at once, so apps that act
+/// on the press and apps that act on the release start from the same input time.
+pub fn click(run: &CellRun, toggle: &Toggle) -> PresetParams {
+    let params = common(run.effort.iterations)
+        .set("position", point(toggle.at))
         .set("toggle", true)
         .set("hold", "0ms")
-        .set("roi", roi)
+        .set("roi", toggle.roi.clone())
         .set("detector", "pixels")
         .set("repeats", run.effort.op_repeats)
-        .set("timeout", PROBE_TIMEOUT)
+        .set("timeout", PROBE_TIMEOUT);
+    match toggle.undo {
+        Some(undo) => params.set("undo_position", point(undo)),
+        None => params,
+    }
 }
 
 /// A key probe: `key` changes the pixels of `roi`, and `undo` brings the state back.
-pub fn key(run: &CellRun, key: &str, undo: &str, roi: serde_json::Value) -> PresetParams {
+pub fn key(run: &CellRun, key: &str, undo: &str, roi: Value) -> PresetParams {
     common(run.effort.iterations)
         .set("key", key)
         .set("undo", undo)
@@ -185,12 +204,44 @@ pub fn key(run: &CellRun, key: &str, undo: &str, roi: serde_json::Value) -> Pres
         .set("timeout", PROBE_TIMEOUT)
 }
 
-/// Typing into the focused input at 120 words per minute; the input is cleared between
-/// iterations.
-pub fn typing(run: &CellRun) -> PresetParams {
-    common(run.effort.iterations)
-        .set("wpm", 120.0)
-        .set("clear", json!(["ctrl+a", "BackSpace"]))
+/// The parameters of a scroll with the pointer at `pointer` and motion estimation in `roi`.
+fn scroll(run: &CellRun, pointer: (i32, i32), roi: Value) -> PresetParams {
+    PresetParams::new()
+        .set("position", point(pointer))
+        .set("roi", roi)
+        .set("iterations", run.effort.iterations)
+        .set("warmup", 1)
+        .set("rate_hz", run.cell.hz * EVENTS_PER_REFRESH)
+}
+
+/// The scroll glide: a finger at 800 px/s for a second with no kinetic tail, four events per
+/// refresh. Returns the
+/// parameters and the length in seconds.
+pub fn glide(run: &CellRun, pointer: (i32, i32), roi: Value) -> (PresetParams, f64) {
+    let params = scroll(run, pointer, roi)
+        .set("source", json!({ "type": "finger", "kinetic": false }))
+        .set("velocity", GLIDE_VELOCITY)
+        .set("duration", format!("{GLIDE_SECONDS}s"));
+    (params, GLIDE_SECONDS)
+}
+
+/// The wheel scroll: a mouse wheel that turns about 13 detents in a second, so the content
+/// moves the way the framework moves it for a wheel, with its smoothing if it has one.
+pub fn wheel(run: &CellRun, pointer: (i32, i32), roi: Value) -> (PresetParams, f64) {
+    let params = scroll(run, pointer, roi)
+        .set("source", json!({ "type": "wheel", "hires": false }))
+        .set("velocity", WHEEL_VELOCITY)
+        .set("duration", format!("{GLIDE_SECONDS}s"));
+    (params, GLIDE_SECONDS)
+}
+
+/// The fling: a finger whose velocity decays from 8000 px/s over a second, which brings many
+/// new rows into view per frame.
+pub fn fling(run: &CellRun, pointer: (i32, i32), roi: Value) -> (PresetParams, f64) {
+    let params = scroll(run, pointer, roi)
+        .set("velocity", FLING_VELOCITY)
+        .set("duration", format!("{GLIDE_SECONDS}s"));
+    (params, GLIDE_SECONDS)
 }
 
 /// A resize storm from 640x480 to 1200x800 and back to the maximized window.
@@ -198,60 +249,48 @@ pub fn resize_storm(run: &CellRun) -> PresetParams {
     common(run.effort.iterations)
 }
 
-/// A scale switch: the iterations alternate between scale 2 and scale 1.
-pub fn scale_switch(run: &CellRun) -> PresetParams {
-    PresetParams::new()
-        .set("iterations", 2 * run.effort.iterations)
-        .set("warmup", 0)
-        .set("scales", json!([2.0, 1.0]))
-}
-
-/// The memory of the app before and after a run of repeated key presses.
-#[derive(Debug, Serialize)]
-struct Churn {
-    key: String,
-    cycles: u32,
-    before: serde_json::Value,
-    after: serde_json::Value,
-}
-
-/// Presses `key` `cycles` times, each time after the window settles, and writes the resource
-/// samples of the app before and after as `churn.json`. An even count leaves the same state, so
-/// the memory difference is what the cycles kept.
-pub fn churn(run: &CellRun, key: &str, cycles: u32) -> anyhow::Result<()> {
-    let press = |n: u32| -> anyhow::Result<()> {
-        let scenario = Scenario::builder("churn")
-            .repeat(n, |b| b.key_tap(key).settle(ms(100)))
-            .settle(ms(300))
-            .sleep(ms(500))
-            .build()?;
-        let result = run.session.blocking_run(scenario)?.blocking_wait()?;
-        anyhow::ensure!(result.ok, "the churn run failed: {:?}", result.error);
-        Ok(())
+/// Clicks a point and waits until the window settles, or for `wait` when the app keeps drawing.
+pub fn click_once(run: &CellRun, at: (i32, i32), settles: bool) -> anyhow::Result<()> {
+    let position = Position::output(f64::from(at.0), f64::from(at.1));
+    let builder =
+        Scenario::builder("click").step(PointerAction::click(Some(position), Button::Left));
+    let builder = if settles {
+        builder.settle(ms(300))
+    } else {
+        builder.sleep(ms(1000))
     };
-    press(4)?;
-    let before = sample(run)?;
-    press(cycles)?;
-    let after = sample(run)?;
-    run.save(
-        "churn.json",
-        &Churn {
-            key: key.to_owned(),
-            cycles,
-            before,
-            after,
-        },
-    )
+    let result = run
+        .session
+        .blocking_run(builder.build()?)?
+        .blocking_wait()?;
+    anyhow::ensure!(result.ok, "the click failed: {:?}", result.error);
+    Ok(())
 }
 
-/// Returns the latest resource sample of the app's process tree.
-fn sample(run: &CellRun) -> anyhow::Result<serde_json::Value> {
-    let pid = run.app.pid();
-    let snapshot = run.session.blocking_resources()?;
-    let tree = snapshot
-        .processes
-        .iter()
-        .find(|p| p.pid == pid)
-        .context("no resource sample of the app")?;
-    Ok(json!({ "process": tree, "gpu": snapshot.gpu }))
+/// Moves the pointer to a point and waits until the window settles.
+pub fn park(run: &CellRun, at: (i32, i32)) -> anyhow::Result<()> {
+    run.session
+        .blocking_pointer_move(Position::output(f64::from(at.0), f64::from(at.1)))?;
+    run.session.blocking_wait_settled(
+        fakeland::WindowRef::Focused,
+        fakeland_types::Nanos::from_millis(300),
+        fakeland_types::Nanos::from_secs(10),
+    )?;
+    Ok(())
+}
+
+/// Writes a screenshot of the window as `<name>.png`.
+pub fn screenshot(run: &CellRun, name: &str) -> anyhow::Result<fakeland::Screenshot> {
+    let shot = run.session.blocking_screenshot(
+        CaptureTarget::default(),
+        CaptureOptions {
+            include_cursor: false,
+            max_dim: None,
+        },
+    )?;
+    std::fs::write(
+        run.out.join(format!("{name}.png")),
+        shot.image.encode_png()?,
+    )?;
+    Ok(shot)
 }

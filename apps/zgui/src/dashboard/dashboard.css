@@ -171,11 +171,63 @@
     background-color: #f9fafb;
 }
 
+/* The live switch at x 976 and the spinner at x 1040, with the look of the compare switch. */
+.topbar .live {
+    flex-shrink: 0;
+    margin-left: 20px;
+}
+
+.spinner {
+    flex-shrink: 0;
+    margin-left: 24px;
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    background-color: #4f46e5;
+    visibility: hidden;
+}
+
+.spinner.spinning {
+    visibility: visible;
+    animation: spin 1000ms linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
 .topbar .export {
     width: 96px;
     height: 36px;
-    margin-left: 144px;
+    margin-left: 36px;
     --zui-button-lift: 0 1px 3px rgba(17, 24, 39, 0.25);
+}
+
+/* The menu under the export button: x 1100..1260 from y 54. */
+.export__menu {
+    width: 160px;
+    padding: 4px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background-color: #ffffff;
+    box-shadow: 0 4px 12px rgba(17, 24, 39, 0.1);
+}
+
+.export__menu .export__item {
+    height: 36px;
+    padding: 0 12px;
+    border-radius: 6px;
+    font-size: 14px;
+    color: #111827;
+}
+
+.export__menu .export__item:hover {
+    background-color: #f3f4f6;
 }
 
 .topbar__avatar {
@@ -422,20 +474,23 @@
 }
 
 /* The switch is 40x22 with an 18 px knob 2 px inside; the border is what insets the knob. */
-.compare .switch {
+.compare .switch,
+.topbar .switch {
     width: 40px;
     height: 22px;
     border-width: 2px;
     box-shadow: none;
 }
 
-.compare .switch > .zui-switch__thumb {
+.compare .switch > .zui-switch__thumb,
+.topbar .switch > .zui-switch__thumb {
     width: 18px;
     height: 18px;
     box-shadow: 0 1px 3px rgba(17, 24, 39, 0.25);
 }
 
-.compare .switch:checked > .zui-switch__thumb {
+.compare .switch:checked > .zui-switch__thumb,
+.topbar .switch:checked > .zui-switch__thumb {
     transform: translateX(18px);
 }
 
@@ -581,4 +636,95 @@
     height: 100%;
     border-radius: 3px;
     background-color: #4f46e5;
+}
+
+/* The amount title sorts the orders; it fills the 120 px at the end of its column. */
+.sort {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-end;
+    width: 120px;
+    height: 100%;
+    color: #6b7280;
+}
+
+.sort.sorted {
+    color: #4f46e5;
+}
+
+.orders__head .col {
+    height: 100%;
+}
+
+/* ---- Messages ---- */
+
+.feed {
+    gap: 12px;
+}
+
+.message {
+    padding: 16px 20px;
+    gap: 12px;
+}
+
+.message__avatar {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: 18px;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.message__text {
+    flex: 1;
+    min-width: 0;
+}
+
+.message__head {
+    gap: 8px;
+    align-items: baseline;
+    line-height: 20px;
+}
+
+.message__author {
+    font-weight: 600;
+}
+
+.message__time {
+    font-size: 13px;
+    color: #6b7280;
+}
+
+.message__body {
+    line-height: 20px;
+}
+
+/* ---- Empty page ---- */
+
+.empty {
+    align-items: center;
+}
+
+.empty__label {
+    margin-top: 48px;
+    color: #6b7280;
+}
+
+/* ---- List scenario ---- */
+
+.list {
+    width: 100%;
+    height: 100%;
+    background-color: #ffffff;
+}
+
+.list__rows {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
 }

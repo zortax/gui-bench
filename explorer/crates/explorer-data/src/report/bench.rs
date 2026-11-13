@@ -9,7 +9,6 @@ use serde::Deserialize;
 #[derive(Debug, Clone, Deserialize)]
 pub struct BenchReport {
     pub format_version: Option<u32>,
-    pub params: Option<serde_json::Value>,
     pub environment: Option<Environment>,
     pub config: Option<Config>,
     pub validity: Option<Validity>,
@@ -101,8 +100,8 @@ pub struct IterationRaw {
 pub struct PacingRaw {
     pub interval_ms: Option<QuantilesRaw>,
     pub missed_vblanks: Option<f64>,
-    pub duration_ms: Option<f64>,
-    pub refresh_hz: Option<f64>,
+    /// The frames the iteration presented.
+    pub presented: Option<f64>,
 }
 
 /// The percentiles of a distribution summary.
@@ -176,18 +175,7 @@ pub struct PooledReport {
 #[derive(Debug, Clone, Deserialize)]
 pub struct SampleRaw {
     pub total_ms: Option<f64>,
+    pub input_to_commit_ms: Option<f64>,
     #[serde(default)]
     pub timed_out: bool,
-}
-
-impl BenchReport {
-    /// Returns a section by name.
-    pub fn section(&self, name: &str) -> Option<&Section> {
-        self.sections.iter().find(|s| s.name == name)
-    }
-
-    /// Returns the `repeats` parameter of the preset.
-    pub fn repeats(&self) -> Option<f64> {
-        self.params.as_ref()?.get("repeats")?.as_f64()
-    }
 }

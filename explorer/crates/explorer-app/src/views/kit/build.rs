@@ -1,13 +1,15 @@
 //! Builders that turn metric columns into chart series and rows: one point or row per shown
 //! cell, with the spread of the uncertainty preference, the baseline ratio, the validity of the
-//! report, and the compare run as ghosts.
+//! report, hollow marks for parts built by hand, and the compare run as ghosts.
 
 use explorer_core::api::{CellInfo, CellKey, MetricRef, Stat};
+use explorer_core::story::part_of;
 use explorer_core::units::{display, short};
 
+use super::controls::size_label;
 use super::data::Data;
 use crate::chart::{DotRow, Pt, Series, Spread, spread};
-use crate::palette::{self, Marker};
+use crate::palette;
 use crate::state::{PrefsSnapshot, Uncertainty, cells_of};
 
 /// The inputs of every builder.
@@ -42,27 +44,9 @@ pub fn cell_tip(cell: &CellInfo, stat: &Stat, samples: bool) -> Vec<(String, Str
         ("n".to_owned(), format!("{n} {what}")),
         (
             "cell".to_owned(),
-            format!("{} · {} Hz", cell.key.size(), cell.key.hz),
+            format!("{} · {} Hz", cell.key.size_text(), cell.key.hz),
         ),
     ]
-}
-
-/// Returns the step points of the empirical CDF of values.
-pub fn ecdf(values: &[f64]) -> Vec<Pt> {
-    let s = explorer_core::stats::sorted(values);
-    let n = s.len() as f64;
-    let mut out = Vec::with_capacity(s.len() + 1);
-    if let Some(first) = s.first() {
-        out.push(Pt::new(*first, 0.0));
-    }
-    for (i, v) in s.iter().enumerate() {
-        out.push(Pt::new(*v, (i + 1) as f64 / n));
-    }
-    out
-}
-
-fn same_size(a: &CellKey, b: &CellKey) -> bool {
-    a.scenario == b.scenario && a.hz == b.hz && a.rows == b.rows && a.updates == b.updates
 }
 
 impl<'a> Build<'a> {
@@ -75,25 +59,27 @@ impl<'a> Build<'a> {
         cells_of(&self.data.run.overview, self.prefs, scenario)
     }
 
-    /// Returns the median of the baseline framework at the size of a cell: the same variant
-    /// when the baseline has it, else its first variant.
+    /// Returns true when the app of a framework builds by hand the part that a measurement of
+    /// a scenario exercises.
+    pub fn hand_built(&self, key: &CellKey, measurement: &str) -> bool {
+        part_of(&key.scenario, measurement).is_some_and(|part| {
+            self.data
+                .overview()
+                .provenance
+                .flagged(&key.framework, part)
+                .is_some()
+        })
+    }
+
+    /// Returns the median of the baseline framework at the size of a cell.
     pub fn baseline(&self, m: &MetricRef, key: &CellKey) -> Option<f64> {
         let base = self.prefs.base.as_ref()?;
-        let candidates: Vec<&CellInfo> = self
+        let cell = self
             .data
             .overview()
             .cells
             .iter()
-            .filter(|c| c.key.framework == *base && same_size(&c.key, key))
-            .collect();
-        let cell = candidates
-            .iter()
-            .find(|c| c.key.variant == key.variant)
-            .or_else(|| {
-                candidates
-                    .iter()
-                    .min_by_key(|c| palette::variant_rank(&c.key.variant))
-            })?;
+            .find(|c| c.key.framework == *base && c.key.same_point(key))?;
         self.data
             .stat(m, cell.id)
             .map(|s| s.median)
@@ -131,14 +117,16 @@ impl<'a> Build<'a> {
         Some(stat.median * factor)
     }
 
-    /// Returns one series per framework and variant of a metric against the row count at a
-    /// refresh rate, with direct end labels, plus ghost series of the compare run.
-    pub fn rows_series(&self, scenario: &str, m: &MetricRef, hz: f64) -> Vec<Series> {
-        self.series_by(scenario, m, hz, |k| Some(f64::from(k.rows)), |_| 1.0)
+    /// Returns one series per framework of a metric against the size of the app (or the rows
+    /// of the list) at a refresh rate, with direct end labels, plus ghost series of the compare
+    /// run.
+    pub fn size_series(&self, scenario: &str, m: &MetricRef, hz: f64) -> Vec<Series> {
+        self.series_by(scenario, m, hz, |k| Some(k.size()), |_| 1.0)
     }
 
-    /// Returns one series per framework and variant of a metric at a refresh rate, with the x of
-    /// a cell from `x_of` and its values times `per`, plus ghost series of the compare run.
+    /// Returns one series per framework of a metric at a refresh rate, with the x of a cell
+    /// from `x_of` and its values times `per`, plus ghost series of the compare run. Editions
+    /// are dashed; a part that the app builds by hand has hollow markers.
     pub fn series_by(
         &self,
         scenario: &str,
@@ -152,42 +140,28 @@ impl<'a> Build<'a> {
             .into_iter()
             .filter(|c| c.key.hz == hz)
             .collect();
-        let mut keys: Vec<(String, String)> = Vec::new();
+        let mut keys: Vec<String> = Vec::new();
         for c in &cells {
-            let k = (c.key.framework.clone(), c.key.variant.clone());
-            if !keys.contains(&k) {
-                keys.push(k);
+            if !keys.contains(&c.key.framework) {
+                keys.push(c.key.framework.clone());
             }
         }
         let n = keys.len() as f64;
         let mut out = Vec::new();
         let mut ghosts = Vec::new();
-        for (i, (fw, variant)) in keys.iter().enumerate() {
-            let label = if variant == "default" {
-                fw.clone()
-            } else {
-                format!("{fw} {variant}")
-            };
-            let mut s = Series::of_framework(format!("{fw}/{variant}"), fw, label.clone());
-            s.marker = Marker::of_variant(variant);
-            s.hollow = variant == "coarse";
+        for (i, fw) in keys.iter().enumerate() {
+            let mut s = Series::of_framework(fw.clone(), fw, fw.clone());
+            s.dash = palette::dash(fw).to_owned();
             s.end_label = true;
             s.dodge = (i as f64 - (n - 1.0) / 2.0) * 2.2;
-            let mut g = Series::of_framework(
-                format!("ghost/{fw}/{variant}"),
-                fw,
-                format!("{label} (compare)"),
-            );
+            let mut g = Series::of_framework(format!("ghost/{fw}"), fw, format!("{fw} (compare)"));
             g.ghost = true;
-            g.marker = s.marker;
             g.dodge = s.dodge;
-            for c in cells
-                .iter()
-                .filter(|c| c.key.framework == *fw && c.key.variant == *variant)
-            {
+            for c in cells.iter().filter(|c| c.key.framework == *fw) {
                 let Some(x) = x_of(&c.key) else {
                     continue;
                 };
+                s.hollow = self.hand_built(&c.key, &m.measurement);
                 let k = per(&c.key);
                 let times = |r: Option<(f64, f64)>| r.map(|(a, b)| (a * k, b * k));
                 if let Some(v) = self.value(m, c) {
@@ -197,6 +171,10 @@ impl<'a> Build<'a> {
                     p.cell = Some(c.id);
                     p.invalid = v.invalid;
                     p.tip = cell_tip(c, &v.stat, self.data.samples(m));
+                    if s.hollow {
+                        p.tip
+                            .push(("part".to_owned(), "built by hand in the app".to_owned()));
+                    }
                     s.points.push(p);
                 }
                 if let Some(y) = self.ghost_value(m, c) {
@@ -228,21 +206,25 @@ impl<'a> Build<'a> {
             .into_iter()
             .filter(|c| keep(&c.key))
             .collect();
-        let many_rates = {
-            let mut rates: Vec<f64> = cells.iter().map(|c| c.key.hz).collect();
-            rates.dedup();
-            rates.len() > 1
+        let distinct = |mut v: Vec<f64>| {
+            v.sort_by(f64::total_cmp);
+            v.dedup();
+            v.len() > 1
         };
+        let many_rates = distinct(cells.iter().map(|c| c.key.hz).collect());
+        let many_sizes = distinct(cells.iter().map(|c| f64::from(c.key.rows)).collect());
         cells
             .iter()
             .map(|c| {
-                let mut label = c.key.label();
+                let mut label = c.key.framework.clone();
+                if many_sizes {
+                    label.push_str(&format!("  {}", size_label((c.key.rows, c.key.elements))));
+                }
                 if many_rates {
                     label.push_str(&format!(" {} Hz", c.key.hz));
                 }
                 let mut row = DotRow::of_framework(c.id.to_string(), &c.key.framework, label);
-                row.marker = Marker::of_variant(&c.key.variant);
-                row.hollow = c.key.variant == "coarse";
+                row.hollow = self.hand_built(&c.key, &m.measurement);
                 row.cell = Some(c.id);
                 if let Some(v) = self.value(m, c) {
                     row.value = Some(v.y);
@@ -255,6 +237,10 @@ impl<'a> Build<'a> {
                         short(v.y)
                     };
                     row.tip = cell_tip(c, &v.stat, self.data.samples(m));
+                    if row.hollow {
+                        row.tip
+                            .push(("part".to_owned(), "built by hand in the app".to_owned()));
+                    }
                 }
                 row.ghost = self.ghost_value(m, c);
                 row

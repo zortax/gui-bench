@@ -1,4 +1,4 @@
-//! A dot plot: one row per framework and variant (or per metric, in the compare view), a dot for
+//! A dot plot: one row per framework (or per metric, in the compare view), a dot for
 //! the value with a band and whiskers, marked values such as percentiles, a hollow origin such as
 //! the value at a smaller size, alternating bands per group, value labels, and an x axis that
 //! zooms. Focus mode pins outlying rows to the right edge.

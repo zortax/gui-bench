@@ -1,6 +1,6 @@
-//! The explore view: any metric of a scenario against any other (or against the row count), one
-//! point per shown cell, colored by framework, shaped by variant, optionally connected across
-//! sizes.
+//! The explore view: any metric of a scenario against any other (or against the size), one
+//! point per shown cell, colored by framework, hollow where the app builds the part by hand,
+//! optionally connected across sizes.
 
 use std::sync::Arc;
 
@@ -11,13 +11,13 @@ use leptos::prelude::*;
 
 use crate::api::metric_catalog;
 use crate::chart::{Axis, ChartCard, Legend, LegendItem, Pt, Series, XyModel, XyPlot, use_card};
-use crate::palette::{self, Marker};
+use crate::palette;
 use crate::state::{RunView, cells_of, use_explorer, use_param};
 use crate::views::kit::{Build, Data, ViewHead, WithData, cell_tip};
 use crate::widgets::{ChartSkeleton, ErrorCard, Segmented, SelectBox, Toggle};
 
-/// The pseudo metric of the row count.
-const ROWS: &str = "rows";
+/// The pseudo metric of the size: the elements of the app, or the rows of the list.
+const SIZE: &str = "size";
 
 fn label(m: &MetricRef) -> String {
     format!("{} · {} · {}", m.measurement, m.section, m.metric)
@@ -56,9 +56,9 @@ fn Builder(overview: Arc<RunOverview>) -> impl IntoView {
 
 #[component]
 fn Body(overview: Arc<RunOverview>, catalog: Arc<Vec<MetricInfo>>) -> impl IntoView {
-    let (scenario, set_scenario) = use_param("sc", "rows");
-    let (x, set_x) = use_param("x", ROWS);
-    let (y, set_y) = use_param("y", "hover.latency.total_ms");
+    let (scenario, set_scenario) = use_param("sc", "app");
+    let (x, set_x) = use_param("x", SIZE);
+    let (y, set_y) = use_param("y", "hover-row.latency.response_ms");
     let (xs, set_xs) = use_param("xs", "log");
     let (lines, set_lines) = use_param("lines", "1");
     let mut scenarios: Vec<String> = Vec::new();
@@ -78,7 +78,7 @@ fn Body(overview: Arc<RunOverview>, catalog: Arc<Vec<MetricInfo>>) -> impl IntoV
         out
     });
     let x_options = Signal::derive(move || {
-        let mut o = vec![(ROWS.to_owned(), "row count".to_owned())];
+        let mut o = vec![(SIZE.to_owned(), "size (elements or rows)".to_owned())];
         o.extend(options.get());
         o
     });
@@ -147,7 +147,7 @@ fn Scatter(
         let x_unit = xm.as_ref().map(|m| data.unit(m)).unwrap_or_default();
         let y_unit = ym.as_ref().map(|m| data.unit(m)).unwrap_or_default();
         let x_axis = Axis::linear(
-            xm.as_ref().map_or("rows".to_owned(), |m| {
+            xm.as_ref().map_or("size".to_owned(), |m| {
                 format!("{} ({})", m.metric, display(&x_unit).words)
             }),
             display(&x_unit).label,
@@ -168,34 +168,25 @@ fn Scatter(
         model.height = 420.0;
         let Some(ym) = ym else { return model };
         let cells: Vec<&CellInfo> = cells_of(data.overview(), &prefs, &sc);
-        let mut keys: Vec<(String, String, f64)> = Vec::new();
+        let mut keys: Vec<(String, f64)> = Vec::new();
         for c in &cells {
-            let k = (c.key.framework.clone(), c.key.variant.clone(), c.key.hz);
+            let k = (c.key.framework.clone(), c.key.hz);
             if !keys.contains(&k) {
                 keys.push(k);
             }
         }
-        for (fw, variant, hz) in keys {
-            let mut s = Series::of_framework(
-                format!("{fw}/{variant}/{hz}"),
-                &fw,
-                format!(
-                    "{} {hz} Hz",
-                    if variant == "default" {
-                        fw.clone()
-                    } else {
-                        format!("{fw} {variant}")
-                    }
-                ),
-            );
-            s.marker = Marker::of_variant(&variant);
-            s.hollow = variant == "coarse";
+        for (fw, hz) in keys {
+            let mut s = Series::of_framework(format!("{fw}/{hz}"), &fw, format!("{fw} {hz} Hz"));
+            s.hollow = cells
+                .iter()
+                .find(|c| c.key.framework == fw)
+                .is_some_and(|c| b.hand_built(&c.key, &ym.measurement));
             s.line = lines.get() == "1";
-            s.dash = palette::hz_dash(hz).to_owned();
+            s.dash = palette::dash(&fw).to_owned();
             s.radius = 4.0;
             for c in cells
                 .iter()
-                .filter(|c| c.key.framework == fw && c.key.variant == variant && c.key.hz == hz)
+                .filter(|c| c.key.framework == fw && c.key.hz == hz)
             {
                 let Some(vy) = b.value(&ym, c) else { continue };
                 let (px, xw) = match &xm {
@@ -203,7 +194,7 @@ fn Scatter(
                         Some(vx) => (vx.y, vx.spread.whisker),
                         None => continue,
                     },
-                    None => (f64::from(c.key.rows), None),
+                    None => (c.key.size(), None),
                 };
                 let mut p = Pt::new(px, vy.y);
                 p.whisker = vy.spread.whisker;

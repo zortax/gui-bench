@@ -1,10 +1,13 @@
-//! The orders card: its own view that holds every order and the filter, and shows the header and
-//! one real row per visible order, each with an avatar, a status pill and a progress bar.
+//! The orders card: its own view that holds every order, observes the filters and the search,
+//! and shows the header and one real row per visible order, each with an avatar, a status pill
+//! and a progress bar. The list scenario shows the same header and rows.
 
+use gpui_kit::component::input::{InputEvent, InputState};
 use gpui_kit::component::{h_flex, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::*;
 
+use super::filters::Filters;
 use super::spec::{self, Order};
 use super::style::card;
 
@@ -18,8 +21,8 @@ const NAME_OFFSET: f32 = 40.0;
 const AMOUNT_PADDING: f32 =
     spec::WINDOW.0 - spec::SIDEBAR_WIDTH - 2.0 * spec::CONTENT_PADDING - spec::COL_AMOUNT_END;
 
-/// One order with its texts, made once.
-struct Row {
+/// One order with its texts.
+pub struct Row {
     order: Order,
     number: SharedString,
     customer: SharedString,
@@ -28,7 +31,7 @@ struct Row {
 }
 
 impl Row {
-    fn new(order: Order) -> Self {
+    pub fn new(order: Order) -> Self {
         Self {
             number: order.number_text().into(),
             customer: order.customer.clone().into(),
@@ -39,31 +42,68 @@ impl Row {
     }
 }
 
-/// The orders and the filter on them.
+/// The orders, and the ones the filters show.
 pub struct Orders {
+    /// Every order, made once.
     rows: Vec<Row>,
-    /// The indexes of the rows that pass the filter.
+    /// The indexes of the rows that pass the filters, in the order the table shows them.
     visible: Vec<usize>,
+    /// Whether the rows are sorted by amount.
+    sorted: bool,
+    filters: Entity<Filters>,
+    search: Entity<InputState>,
+    _changes: [Subscription; 2],
 }
 
 impl Orders {
-    pub fn new(count: usize) -> Self {
-        Self {
+    pub fn new(
+        count: usize,
+        filters: Entity<Filters>,
+        search: Entity<InputState>,
+        cx: &mut Context<Self>,
+    ) -> Self {
+        let changes = [
+            cx.observe(&filters, |this, _, cx| this.filter(cx)),
+            cx.subscribe(&search, |this, _, event: &InputEvent, cx| {
+                if let InputEvent::Change = event {
+                    this.filter(cx);
+                }
+            }),
+        ];
+        let mut orders = Self {
             rows: spec::orders(count).into_iter().map(Row::new).collect(),
-            visible: (0..count).collect(),
+            visible: Vec::new(),
+            sorted: false,
+            filters,
+            search,
+            _changes: changes,
+        };
+        orders.filter(cx);
+        orders
+    }
+
+    /// Shows the orders whose status is checked and whose customer holds the search text, by
+    /// amount when the filters say so (the order of `spec::arranged`).
+    fn filter(&mut self, cx: &mut Context<Self>) {
+        let search = self.search.read(cx).value();
+        let filters = self.filters.read(cx);
+        let mut visible: Vec<usize> = (0..self.rows.len())
+            .filter(|&i| spec::visible(&self.rows[i].order, &filters.shown, &search))
+            .collect();
+        let sorted = filters.sorted;
+        if sorted {
+            visible.sort_by_key(|&i| std::cmp::Reverse(self.rows[i].order.cents));
+        }
+        if visible != self.visible || sorted != self.sorted {
+            self.visible = visible;
+            self.sorted = sorted;
+            cx.notify();
         }
     }
 
-    /// Shows the orders whose status is shown (`shown[k]` for `Status::ALL[k]`) and whose
-    /// customer holds `search`.
-    pub fn filter(&mut self, shown: &[bool; 4], search: &str, cx: &mut Context<Self>) {
-        let visible: Vec<usize> = (0..self.rows.len())
-            .filter(|&i| spec::visible(&self.rows[i].order, shown, search))
-            .collect();
-        if visible != self.visible {
-            self.visible = visible;
-            cx.notify();
-        }
+    /// Returns the height of the card: the header and the visible rows.
+    pub fn height(&self) -> f32 {
+        spec::TABLE_HEADER_HEIGHT + spec::ORDER_ROW_HEIGHT * self.visible.len() as f32
     }
 }
 
@@ -89,33 +129,46 @@ fn columns(height: f32, cells: [AnyElement; 4], amount: impl IntoElement) -> Div
                 ])
                 .map(|(cell, width)| h_flex().flex_none().w(px(width)).child(cell)),
         )
-        .child(h_flex().flex_1().min_w_0().justify_end().child(amount))
+        .child(
+            h_flex()
+                .flex_1()
+                .min_w_0()
+                .h_full()
+                .justify_end()
+                .child(amount),
+        )
 }
 
-/// Returns the header with the column titles.
-fn header() -> Div {
-    let [order, customer, status, progress, amount] = spec::COLUMNS.map(|title| div().child(title));
+/// Returns the header with the column titles. The amount title is `PRIMARY` while `sorted`, and
+/// a click on it calls `on_sort`.
+pub fn header(
+    sorted: bool,
+    on_sort: impl Fn(&ClickEvent, &mut Window, &mut App) + 'static,
+) -> Div {
+    let [order, customer, status, progress] =
+        [0, 1, 2, 3].map(|k| div().child(spec::COLUMNS[k]).into_any_element());
+    let amount = h_flex()
+        .id("sort")
+        .w(px(spec::SORT_WIDTH))
+        .h_full()
+        .justify_end()
+        .when(sorted, |title| title.text_color(rgb(spec::PRIMARY)))
+        .on_click(on_sort)
+        .child(spec::COLUMNS[spec::SORT_COLUMN]);
     columns(
         spec::TABLE_HEADER_HEIGHT,
-        [
-            order.into_any_element(),
-            customer.into_any_element(),
-            status.into_any_element(),
-            progress.into_any_element(),
-        ],
+        [order, customer, status, progress],
         amount,
     )
     .border_color(rgb(spec::RULE))
-    .rounded_t(px(spec::CARD_RADIUS))
     .bg(rgb(spec::TABLE_HEADER_BG))
     .text_size(px(12.0))
     .font_weight(FontWeight::SEMIBOLD)
     .text_color(rgb(spec::MUTED))
 }
 
-/// Returns the row of order `row` at index `i`, with the hover color. The last row rounds its
-/// bottom corners like the card.
-fn row(i: usize, row: &Row, last: bool) -> Stateful<Div> {
+/// Returns the row of `row` with the element id `id` and the hover color.
+pub fn row(id: usize, row: &Row) -> Stateful<Div> {
     let (pill_bg, pill_text) = row.order.status.colors();
     let customer = h_flex()
         .gap(px(NAME_OFFSET - spec::AVATAR))
@@ -168,24 +221,27 @@ fn row(i: usize, row: &Row, last: bool) -> Stateful<Div> {
             .font_weight(FontWeight::SEMIBOLD)
             .child(row.amount.clone()),
     )
-    .id(i)
+    .id(id)
     .border_color(rgb(spec::ROW_RULE))
     .bg(rgb(spec::CARD_BG))
     .hover(|style| style.bg(rgb(spec::ROW_HOVER)))
-    .when(last, |row| row.rounded_b(px(spec::CARD_RADIUS)))
 }
 
 impl Render for Orders {
     fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        let filters = self.filters.clone();
+        let header = header(self.sorted, move |_, _, cx| {
+            filters.update(cx, |filters, cx| filters.toggle_sorted(cx))
+        })
+        .rounded_t(px(spec::CARD_RADIUS));
+        // The last row rounds its bottom corners like the card.
         let count = self.visible.len();
-        let rows = self
-            .visible
-            .iter()
-            .enumerate()
-            .map(|(at, &i)| row(i, &self.rows[i], at + 1 == count));
+        let rows = self.visible.iter().enumerate().map(|(at, &i)| {
+            row(i, &self.rows[i]).when(at + 1 == count, |row| row.rounded_b(px(spec::CARD_RADIUS)))
+        });
         card()
             .flex_none()
             .w_full()
-            .child(v_flex().w_full().child(header()).children(rows))
+            .child(v_flex().w_full().child(header).children(rows))
     }
 }

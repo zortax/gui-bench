@@ -3,8 +3,7 @@
 
 use freya::prelude::*;
 
-use super::{card, spec, text};
-use crate::page::color;
+use super::{card, color, spec, text};
 
 /// The top corners of a bar.
 const BAR_RADIUS: CornerRadius = CornerRadius::new(4.0, 4.0, 0.0, 0.0);

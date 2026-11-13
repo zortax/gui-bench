@@ -14,8 +14,8 @@ const DELTA_HEIGHT: f32 = 22.0;
 /// The bottom of the sparkline bars in a card.
 const SPARK_BOTTOM: f32 = 92.0;
 
-/// Shows the row of metric cards.
-pub fn show(ui: &mut Ui) {
+/// Shows the row of metric cards with their values at live tick `tick`.
+pub fn show(ui: &mut Ui, tick: u64) {
     let count = spec::KPI_COUNT as f32;
     let width = (ui.available_width() - (count - 1.0) * spec::GAP) / count;
     ui.horizontal(|ui| {
@@ -23,13 +23,13 @@ pub fn show(ui: &mut Ui) {
             if k > 0 {
                 ui.add_space(spec::GAP);
             }
-            metric(ui, kpi, width);
+            metric(ui, kpi, &spec::kpi_value(k, tick), width);
         }
     });
 }
 
-/// One metric card, `width` wide.
-fn metric(ui: &mut Ui, kpi: &Kpi, width: f32) {
+/// One metric card, `width` wide, that shows `value`.
+fn metric(ui: &mut Ui, kpi: &Kpi, value: &str, width: f32) {
     let padding = spec::CARD_PADDING;
     let margin = Margin {
         left: padding as i8,
@@ -49,7 +49,7 @@ fn metric(ui: &mut Ui, kpi: &Kpi, width: f32) {
                     Layout::top_down(Align::Min),
                     |ui| ui.label(label),
                 );
-                let value = text(kpi.value, 24.0, Weight::Bold, spec::TEXT);
+                let value = text(value, 24.0, Weight::Bold, spec::TEXT);
                 area(
                     ui,
                     vec2(0.0, DELTA_Y - VALUE_Y),

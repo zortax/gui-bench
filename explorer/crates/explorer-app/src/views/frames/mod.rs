@@ -9,7 +9,5 @@ mod source;
 mod view;
 
 pub use gaps::GapCards;
-pub use profile::ProfileCard;
-pub use scaling::FrameScaling;
-pub use source::{SOURCES, Source, metrics};
+pub use source::{Source, metrics};
 pub use view::FramesView;

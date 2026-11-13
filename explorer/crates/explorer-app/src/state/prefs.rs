@@ -1,5 +1,5 @@
-//! The preferences of the explorer, read from the URL query: framework, variant and refresh
-//! rate filters, the value scale, the uncertainty shown, outlier focus, the baseline framework,
+//! The preferences of the explorer, read from the URL query: framework and refresh rate
+//! filters, the value scale, the uncertainty shown, outlier focus, the baseline framework,
 //! the compare run, the valid-only filter and the open cell.
 
 use leptos::prelude::*;
@@ -97,7 +97,6 @@ impl Uncertainty {
 #[derive(Clone, Copy)]
 pub struct Prefs {
     pub hidden: Memo<Vec<String>>,
-    pub variants: Memo<Vec<String>>,
     pub rates: Memo<Vec<String>>,
     pub scale: Memo<ScalePref>,
     pub uncertainty: Memo<Uncertainty>,
@@ -112,7 +111,6 @@ pub struct Prefs {
 #[derive(Debug, Clone, PartialEq)]
 pub struct PrefsSnapshot {
     pub hidden: Vec<String>,
-    pub variants: Vec<String>,
     pub rates: Vec<String>,
     pub scale: ScalePref,
     pub uncertainty: Uncertainty,
@@ -139,7 +137,6 @@ impl Prefs {
         let get = move |key: &'static str| q.with(|q| q.get(key));
         Self {
             hidden: Memo::new(move |_| list(get("hide"))),
-            variants: Memo::new(move |_| list(get("var"))),
             rates: Memo::new(move |_| list(get("hz"))),
             scale: Memo::new(move |_| ScalePref::parse(&get("scale").unwrap_or_default())),
             uncertainty: Memo::new(move |_| Uncertainty::parse(&get("unc").unwrap_or_default())),
@@ -155,7 +152,6 @@ impl Prefs {
     pub fn snapshot(&self) -> PrefsSnapshot {
         PrefsSnapshot {
             hidden: self.hidden.get(),
-            variants: self.variants.get(),
             rates: self.rates.get(),
             scale: self.scale.get(),
             uncertainty: self.uncertainty.get(),
@@ -171,13 +167,6 @@ impl PrefsSnapshot {
     /// Returns true when a framework shows.
     pub fn shows_framework(&self, framework: &str) -> bool {
         !self.hidden.iter().any(|h| h == framework)
-    }
-
-    /// Returns true when a variant shows.
-    pub fn shows_variant(&self, variant: &str) -> bool {
-        variant == "default"
-            || self.variants.is_empty()
-            || self.variants.iter().any(|v| v == variant)
     }
 
     /// Returns true when a refresh rate shows.

@@ -1,5 +1,5 @@
-//! A matrix cell: its key (scenario, framework, variant, refresh rate, size), its outcome and the
-//! health of its measurements.
+//! A matrix cell: its key (scenario, framework, refresh rate, size), its outcome and the health
+//! of its measurements.
 
 use serde::{Deserialize, Serialize};
 
@@ -9,42 +9,59 @@ pub type CellId = u32;
 /// One point of the benchmark matrix.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CellKey {
-    /// The scenario, such as `rows` or `table`.
+    /// The scenario, `app` or `list`.
     pub scenario: String,
-    /// The framework, such as `zgui` or `gpui-kit-fast`.
+    /// The framework or edition, such as `zgui` or `iced-tuned`.
     pub framework: String,
-    /// The variant, `default` for scenarios without variants.
-    pub variant: String,
     /// The refresh rate of the output in Hz.
     pub hz: f64,
-    /// The number of rows the app renders.
+    /// The number of rows the app holds: orders and messages, or rows of list data.
     pub rows: u32,
-    /// The ticker row updates per tick.
-    pub updates: Option<u32>,
+    /// The elements of the app as the spec counts them. A list has none.
+    pub elements: Option<u32>,
 }
 
 impl CellKey {
-    /// Returns the framework, with the variant when it has one.
-    pub fn label(&self) -> String {
-        if self.variant == "default" {
-            self.framework.clone()
-        } else {
-            format!("{} {}", self.framework, self.variant)
+    /// Returns the size on a size axis: the elements of the app, or the rows of the list.
+    pub fn size(&self) -> f64 {
+        f64::from(self.elements.unwrap_or(self.rows))
+    }
+
+    /// Returns the size as text, such as `11,228 elements (1,000 orders)` or `10,000 rows`.
+    pub fn size_text(&self) -> String {
+        let rows = crate::units::thousands(f64::from(self.rows));
+        match self.elements {
+            Some(e) => format!(
+                "{} elements ({rows} orders)",
+                crate::units::thousands(f64::from(e))
+            ),
+            None => format!("{rows} rows"),
         }
     }
 
-    /// Returns the size as text: the row count, with the ticker updates.
-    pub fn size(&self) -> String {
-        let rows = format!("{} rows", crate::units::thousands(f64::from(self.rows)));
-        match self.updates {
-            Some(u) => format!("{rows}, {u} updates/tick"),
-            None => rows,
-        }
+    /// Returns true when both keys name the same scenario, refresh rate and size.
+    pub fn same_point(&self, other: &CellKey) -> bool {
+        self.scenario == other.scenario && self.hz == other.hz && self.rows == other.rows
     }
+}
 
-    /// Returns the size as a sortable pair: rows, then updates.
-    pub fn size_key(&self) -> (u32, u32) {
-        (self.rows, self.updates.unwrap_or(0))
+/// Which measurements a cell takes.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Part {
+    /// Every measurement of the scenario.
+    #[default]
+    Full,
+    /// The pacing measurements only, at the slow refresh rate.
+    Pacing,
+}
+
+impl Part {
+    /// Returns the part from its index text.
+    pub fn parse(text: &str) -> Self {
+        match text {
+            "pacing" => Self::Pacing,
+            _ => Self::Full,
+        }
     }
 }
 
@@ -82,7 +99,7 @@ impl CheckStatus {
 /// The validity of one measurement of a cell.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MeasurementHealth {
-    /// The measurement, such as `hover` or `op-swap`.
+    /// The measurement, such as `hover-row` or `scroll-fling`.
     pub measurement: String,
     /// The report counts as valid.
     pub valid: bool,
@@ -97,6 +114,8 @@ pub struct CellInfo {
     pub id: CellId,
     /// The matrix point.
     pub key: CellKey,
+    /// The measurements the cell takes.
+    pub part: Part,
     /// The cell directory relative to the run directory.
     pub dir: String,
     /// The measurements that wrote a report.
@@ -105,6 +124,12 @@ pub struct CellInfo {
     pub errors: Vec<(String, String)>,
     /// The measurements the cell skips, with the reason.
     pub skipped: Vec<(String, String)>,
+    /// A pacing measurement missed more than 1 % of the refreshes.
+    pub missed_refreshes: bool,
+    /// A response took over a second or never came, so the cell skipped its later measurements.
+    pub over_budget: bool,
+    /// Why the cell did not run: its framework was over the response budget at a smaller size.
+    pub stopped: Option<String>,
     /// The validity of every bench report.
     pub health: Vec<MeasurementHealth>,
 }
@@ -118,5 +143,10 @@ impl CellInfo {
     /// Returns true when the measurement report exists and counts as valid.
     pub fn is_valid(&self, measurement: &str) -> bool {
         self.health_of(measurement).is_none_or(|h| h.valid)
+    }
+
+    /// Returns true when the cell ran.
+    pub fn ran(&self) -> bool {
+        self.stopped.is_none()
     }
 }

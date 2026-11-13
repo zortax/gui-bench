@@ -4,8 +4,7 @@
 
 use freya::prelude::*;
 
-use super::{avatar, spec, text};
-use crate::page::color;
+use super::{avatar, color, spec, text};
 
 /// The sidebar. It reads the active item, so a nav click renders the sidebar alone.
 #[derive(PartialEq)]

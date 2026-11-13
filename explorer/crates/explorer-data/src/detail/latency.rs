@@ -19,7 +19,7 @@ const STAGES: [(&str, &str); 4] = [
 ];
 
 impl RunData {
-    /// Returns the latency series of a measurement such as `hover` or `op-swap`.
+    /// Returns the latency series of a measurement such as `hover-row` or `click-sort`.
     pub fn latency_detail(
         &self,
         id: CellId,
@@ -67,6 +67,16 @@ impl RunData {
         let median_ci = get("total_median_ci").and_then(|c| Some((num(c, "lo")?, num(c, "hi")?)));
         Ok(LatencyDetail {
             measurement: measurement.to_owned(),
+            commit_to_ready_p50: latency
+                .and_then(|l| l.get("metrics")?.as_array())
+                .into_iter()
+                .flatten()
+                .find(|m| {
+                    m.get("name").and_then(Value::as_str) == Some("commit_to_ready_p50")
+                        && m.get("variant").is_none_or(Value::is_null)
+                })
+                .and_then(|m| num(m, "median"))
+                .unwrap_or(0.0),
             iterations,
             stages,
             total: summary(get("total_ms")),

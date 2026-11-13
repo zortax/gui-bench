@@ -1,24 +1,49 @@
-//! The metric cards: label, value, delta pill and a sparkline of plain bars, placed at the card
-//! offsets of the spec.
+//! The metric cards: their own view, which observes the live state and shows the value of its
+//! tick. Each card holds a label, the value, a delta pill and a sparkline of plain bars, placed
+//! at the card offsets of the spec.
 
 use gpui_kit::component::h_flex;
 use gpui_kit::*;
 
+use super::live::Live;
 use super::spec::{self, Kpi};
 use super::style::card;
 
-/// Returns the row of the four metric cards, which share the width.
-pub fn kpis() -> Div {
-    h_flex()
-        .flex_none()
-        .w_full()
-        .h(px(spec::KPI_HEIGHT))
-        .gap(px(spec::GAP))
-        .children(spec::KPIS.iter().map(kpi))
+/// The row of the four metric cards.
+pub struct Kpis {
+    live: Entity<Live>,
+    _live_changes: Subscription,
 }
 
-/// Returns one metric card.
-fn kpi(kpi: &Kpi) -> Div {
+impl Kpis {
+    pub fn new(live: Entity<Live>, cx: &mut Context<Self>) -> Self {
+        let live_changes = cx.observe(&live, |_, _, cx| cx.notify());
+        Self {
+            live,
+            _live_changes: live_changes,
+        }
+    }
+}
+
+impl Render for Kpis {
+    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let tick = self.live.read(cx).tick;
+        h_flex()
+            .flex_none()
+            .w_full()
+            .h(px(spec::KPI_HEIGHT))
+            .gap(px(spec::GAP))
+            .children(
+                spec::KPIS
+                    .iter()
+                    .enumerate()
+                    .map(|(k, kpi)| self::kpi(kpi, spec::kpi_value(k, tick))),
+            )
+    }
+}
+
+/// Returns one metric card that shows `value`.
+fn kpi(kpi: &Kpi, value: String) -> Div {
     let (background, text) = if kpi.up {
         (spec::UP_BG, spec::UP_TEXT)
     } else {
@@ -46,7 +71,7 @@ fn kpi(kpi: &Kpi) -> Div {
                 .top(px(40.0))
                 .text_size(px(24.0))
                 .font_weight(FontWeight::BOLD)
-                .child(kpi.value),
+                .child(value),
         )
         .child(
             h_flex()
