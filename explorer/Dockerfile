@@ -63,6 +63,11 @@ RUN set -eu; cd /data/results; rm -f latest; \
 # glibc and libgcc only; runs as the unprivileged user 65532 and writes nothing.
 FROM gcr.io/distroless/cc-debian12:nonroot
 
+# Links the image to its repository in a registry that reads the label, such as ghcr.io.
+LABEL org.opencontainers.image.source="https://github.com/zortax/gui-bench" \
+      org.opencontainers.image.description="The gui-bench explorer with its run data" \
+      org.opencontainers.image.licenses="Apache-2.0"
+
 COPY --from=build /out/explorer-server /app/explorer-server
 COPY --from=build /out/site /app/site
 COPY plots/fonts /app/fonts
