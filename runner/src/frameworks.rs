@@ -111,6 +111,30 @@ const DIOXUS: &[(&str, &str)] = &[(
 /// Every known framework and edition.
 pub const ALL: &[Framework] = &[
     Framework {
+        name: "vapors",
+        app: "vapors",
+        package: "vapors-app",
+        build: "",
+        marks: false,
+        default: false,
+        full: false,
+        flags: &[
+            (
+                "style",
+                "chart and colours use predefined styles; progress uses segments",
+            ),
+            (
+                "switch",
+                "live uses boxes and a click handler; compare uses a switch without the knob shadow",
+            ),
+            ("placeholder", "search placeholder drawn over the input"),
+            ("clip", "rounded clipping is incomplete"),
+            ("menu", "absolute box without light dismiss"),
+            ("spinner", "SVG path recalculated from the frame clock"),
+            ("timer", "live ticks derived from frame time"),
+        ],
+    },
+    Framework {
         name: "zgui",
         app: "zgui",
         package: "zgui",
